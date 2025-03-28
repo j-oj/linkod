@@ -18,7 +18,7 @@ A comprehensive directory of all student organizations in University of the Phil
 ### 2. Before making changes in dev-branch:
 ```
 - git checkout dev-branch     // go to dev-branch
-- git pull origin main        // merges main branch with current branch
+- git pull origin staging        // merges staging branch with current branch
 - git push                    // push changes to the cloud 
 ```
 Doing these 3 commands ensures you are updated to the latest version of the main branch. You may now make changes to the code.
@@ -28,11 +28,8 @@ Doing these 3 commands ensures you are updated to the latest version of the main
 
 __Commit and push changes to dev-branch with commit message in the vscode git GUI__
 ```
-- git pull origin main        // merges main branch with current branch
-- git push                    // push changes to the cloud 
-- git checkout main           // change branch to main
-- git pull                    // get recent changes 
-- git merge dev-branch        // merge changes from dev-branch
-- git push                    // push changes to the cloud 
-- git checkout dev-branch     // return to dev-branch
+- git pull origin staging          // merges staging branch with current branch
+- git push                      // push changes to the cloud 
 ```
+
+### 4. Make a PR from your dev-branch to staging.
