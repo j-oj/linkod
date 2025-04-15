@@ -1,7 +1,8 @@
 import { MdAlternateEmail } from "react-icons/md";
 import { FaFingerprint } from "react-icons/fa";
-import { FaRegEye, FaRegEyeSlash } from "react-icons/fa";
+import { FaRegEye, FaRegEyeSlash, FaHome } from "react-icons/fa";
 import { useState } from "react";
+import ActionButton from "../components/ui/actionbutton";
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -9,7 +10,7 @@ const Login = () => {
 
   return (
     <div className="w-full h-screen flex items-center justify-center">
-      <div className="w-[90%] max-w-sm md:max-w-md lg:max-w-md p-5 bg-gray-300 flex-col flex items-center gap-3 rounded-xl shadow-slate-500 shadow-lg">
+      <div className="w-[90%] max-w-sm md:max-w-md lg:max-w-md p-5 bg-gray-100 flex-col flex items-center gap-3 rounded-xl shadow-slate-400 shadow-md">
         <img src="/templogo.png" alt="logo" className="w-12 md:w-14" />
         <h1 className="text-rose-950 text-lg md:text-xl font-semibold">
           Welcome!
@@ -47,7 +48,7 @@ const Login = () => {
           </div>
         </div>
 
-        <button className="w-full text-white p-2 bg-rose-950 rounded-xl mt-3 hover:bg-rose-800 text-sm md:text-base">
+        <button className="w-full text-white p-2 bg-maroon rounded-xl mt-3 hover:bg-red-800 hover:cursor-pointer text-sm md:text-base">
           Login
         </button>
 
@@ -58,7 +59,7 @@ const Login = () => {
           </h3>
           <div className="w-2/5 h-[2px] bg-gray-800"></div>
         </div>
-        <button className="w-full text-white flex items-center place-content-center p-2 bg-rose-950 rounded-xl mt-3 hover:bg-rose-800 text-sm md:text-base">
+        <button className="w-full text-white flex items-center place-content-center p-2 bg-maroon rounded-xl mt-3 hover:bg-red-800 hover:cursor-pointer text-sm md:text-base">
           <img
             src="/google-icon.png"
             alt="google-icon"
@@ -67,6 +68,8 @@ const Login = () => {
           Login with Google
         </button>
       </div>
+
+      <ActionButton type="home" />
     </div>
   );
 };
