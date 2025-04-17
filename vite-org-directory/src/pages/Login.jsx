@@ -1,8 +1,9 @@
 import { MdAlternateEmail } from "react-icons/md";
-import { FaFingerprint, FaRegEye, FaRegEyeSlash } from "react-icons/fa";
+import { FaFingerprint, FaRegEye, FaRegEyeSlash, FaHome } from "react-icons/fa";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient";
+import ActionButton from "../components/ui/actionbutton";
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -50,7 +51,7 @@ const Login = () => {
 
   return (
     <div className="w-full h-screen flex items-center justify-center">
-      <div className="w-[90%] max-w-sm md:max-w-md p-5 bg-gray-300 flex-col flex items-center gap-3 rounded-xl shadow-slate-500 shadow-lg">
+      <div className="w-[90%] max-w-sm md:max-w-md lg:max-w-md p-5 bg-gray-100 flex-col flex items-center gap-3 rounded-xl shadow-slate-400 shadow-md">
         <img src="/templogo.png" alt="logo" className="w-12 md:w-14" />
         <h1 className="text-rose-950 text-lg md:text-xl font-semibold">
           Welcome!
@@ -136,6 +137,8 @@ const Login = () => {
           Login with Google
         </button>
       </div>
+
+      <ActionButton type="home" />
     </div>
   );
 };
