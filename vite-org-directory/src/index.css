@@ -113,6 +113,11 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/* Custom colors for Website */
+@theme {
+  --color-maroon: #7b1113;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
