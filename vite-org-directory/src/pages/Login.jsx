@@ -13,23 +13,22 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const togglePasswordView = () => setShowPassword(!showPassword);
-
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
     setErrorMsg("");
-
+  
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
-
+  
     if (error) {
       setErrorMsg("Invalid email or password. Please try again.");
       setLoading(false);
     } else {
       setLoading(false);
-      navigate("/SAdminDashboard");
+      navigate("/superadmin-dashboard"); // Corrected path
     }
   };
 

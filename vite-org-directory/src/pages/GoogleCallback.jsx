@@ -4,35 +4,64 @@ import { useNavigate } from "react-router-dom";
 
 const GoogleCallback = () => {
   const navigate = useNavigate();
-  const [errorMsg, setErrorMsg] = useState(""); // State to hold the error message
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const goToHomePage = () => {
+    navigate("/");  
+  };
 
   useEffect(() => {
-    const checkSession = async () => {
-      // Check if user is authenticated
-      const { data: { user }, error } = await supabase.auth.getUser();
+    const checkSessionAndRole = async () => {
+      try {
+        // Get the authenticated user
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-      if (error || !user) {
-        // Set the error message and redirect to the login page
-        setErrorMsg("Sorry, you are not authorized to view this page.");
-        // Redirect after showing the message
-        setTimeout(() => {
-          window.location.replace("/"); // Go back to the login page
-        }, 3000); // Delay redirect for 3 seconds 
-      } else {
-        // After successful authentication, check the session
-        const { data: { session } } = await supabase.auth.getSession();
-
-        if (session) {
-          // Redirect to the dashboard if the session is valid
-          navigate("/SAdminDashboard"); 
-        } else {
-          // If no session, redirect to login
-          window.location.replace("/");
+        if (userError || !user) {
+          setErrorMsg("Sorry, you are not authorized to view this page.");
+          return; 
         }
+
+        // Get the session 
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError || !session) {
+          setErrorMsg("Session expired. Please log in again.");
+          return; 
+        }
+
+        // Query the role from user_roles table
+        const { data: roleData, error: roleError } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .single(); 
+        
+        console.log("User ID:", user.id)
+        console.log("Role Data:", roleData);
+        console.log("Role Error:", roleError);
+
+        if (roleError || !roleData) {
+          setErrorMsg("Sorry, you are not authorized to view this page.");
+          return; 
+        }
+
+        const userRole = roleData.role;
+
+        // Redirect based on the user's role
+        if (userRole === "superadmin") {
+          navigate("/superadmin-dashboard");
+        } else if (userRole === "admin") {
+          navigate("/admin-dashboard");
+        } else {
+          setErrorMsg("Unauthorized role.");
+        }
+
+      } catch (error) {
+        console.error("Error during session validation:", error);
+        setErrorMsg("An unexpected error occurred. Please try again.");
       }
     };
 
-    checkSession();
+    checkSessionAndRole();
   }, [navigate]);
 
   return (
@@ -41,6 +70,11 @@ const GoogleCallback = () => {
         <div style={{ color: "red", textAlign: "center", marginTop: "20px" }}>
           {errorMsg}
         </div>
+      )}
+      {errorMsg && (
+        <button onClick={goToHomePage} style={{ display: "block", margin: "20px auto" }}>
+          Go back to Homepage
+        </button>
       )}
     </div>
   );
