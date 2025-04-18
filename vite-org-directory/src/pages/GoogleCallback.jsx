@@ -34,10 +34,6 @@ const GoogleCallback = () => {
           .select("role")
           .eq("user_id", user.id)
           .single(); 
-        
-        console.log("User ID:", user.id)
-        console.log("Role Data:", roleData);
-        console.log("Role Error:", roleError);
 
         if (roleError || !roleData) {
           setErrorMsg("Sorry, you are not authorized to view this page.");
