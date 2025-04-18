@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 
 const ProtectedRoutes = ({ allowedRole }) => {
   const [isAllowed, setIsAllowed] = useState(null);
+  const [currentRole, setCurrentRole] = useState(null);
+  const location = useLocation();
 
   useEffect(() => {
     const verifyAccess = async () => {
@@ -29,18 +31,28 @@ const ProtectedRoutes = ({ allowedRole }) => {
         return;
       }
 
+      setCurrentRole(roleData.role); // Store user role
       setIsAllowed(roleData.role === allowedRole);
     };
 
     verifyAccess();
   }, [allowedRole]);
 
- 
   if (isAllowed === null) {
     return <div>Loading...</div>; 
   }
 
-  return isAllowed ? <Outlet /> : <Navigate to="/" />;
+  // Keep authenticated users on their own dashboard
+  if (!isAllowed) {
+    if (currentRole === "superadmin") {
+      return <Navigate to="/superadmin-dashboard" replace />;
+    }
+    if (currentRole === "admin") {
+      return <Navigate to="/admin-dashboard" replace />;
+    }
+  }
+
+  return <Outlet />;
 };
 
 export default ProtectedRoutes;
