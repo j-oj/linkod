@@ -73,7 +73,7 @@ const Navbar = ({ userRole = "admin" }) => {
                   {userRole === "superadmin" && (
                     <li className="hover:bg-gray-200 px-4 py-2 cursor-pointer">
                       <Link
-                        to="/super-admin-dashboard"
+                        to="/superadmin-dashboard"
                         className="block w-full h-full"
                       >
                         Super Admin Dashboard

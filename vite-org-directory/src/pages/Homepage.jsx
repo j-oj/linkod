@@ -9,7 +9,7 @@ const Homepage = () => {
       <div>
         This is the homepage
         <Link
-          to="/super-admin-dashboard"
+          to="/superadmin-dashboard"
           className="block w-full h-full underline underline-offset-4"
         >
           Go to SAdmin Dashboard
