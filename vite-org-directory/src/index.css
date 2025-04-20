@@ -126,3 +126,12 @@
     @apply bg-background text-foreground;
   }
 }
+
+.react-select__control {
+  border-radius: 0.375rem;
+  border: 1px solid #d1d5db;
+  padding: 2px;
+}
+.react-select__menu {
+  z-index: 10;
+}

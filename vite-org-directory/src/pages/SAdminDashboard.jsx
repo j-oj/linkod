@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { FaRegTrashAlt, FaUserTimes, FaSearch } from "react-icons/fa";
 import ConfirmAction from "../components/ui/confirmAction";
-import Navbar from "../components/navbar";
 import ActionButton from "../components/ui/actionbutton";
+import Navbar from "../components/navbar";
 
 const TABS = ["Activity Log", "Admins", "Organizations"];
 

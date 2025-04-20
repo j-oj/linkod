@@ -1,48 +1,51 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 import { useNavigate } from "react-router-dom";
+import { FaLock } from "react-icons/fa";
 
 const GoogleCallback = () => {
   const navigate = useNavigate();
   const [errorMsg, setErrorMsg] = useState("");
 
   const goToHomePage = () => {
-    navigate("/");  
+    navigate("/");
   };
 
   useEffect(() => {
     const checkSessionAndRole = async () => {
       try {
-        // Get the authenticated user
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
 
         if (userError || !user) {
           setErrorMsg("Sorry, you are not authorized to view this page.");
-          return; 
+          return;
         }
 
-        // Get the session 
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        const {
+          data: { session },
+          error: sessionError,
+        } = await supabase.auth.getSession();
         if (sessionError || !session) {
           setErrorMsg("Session expired. Please log in again.");
-          return; 
+          return;
         }
 
-        // Query the role from user_roles table
         const { data: roleData, error: roleError } = await supabase
           .from("user_roles")
           .select("role")
           .eq("user_id", user.id)
-          .single(); 
+          .single();
 
         if (roleError || !roleData) {
           setErrorMsg("Sorry, you are not authorized to view this page.");
-          return; 
+          return;
         }
 
         const userRole = roleData.role;
 
-        // Redirect based on the user's role
         if (userRole === "superadmin") {
           navigate("/superadmin-dashboard");
         } else if (userRole === "admin") {
@@ -50,7 +53,6 @@ const GoogleCallback = () => {
         } else {
           setErrorMsg("Unauthorized role.");
         }
-
       } catch (error) {
         console.error("Error during session validation:", error);
         setErrorMsg("An unexpected error occurred. Please try again.");
@@ -61,16 +63,22 @@ const GoogleCallback = () => {
   }, [navigate]);
 
   return (
-    <div>
+    <div className="flex flex-col items-center justify-center h-screen bg-gray-100 px-4">
       {errorMsg && (
-        <div style={{ color: "red", textAlign: "center", marginTop: "20px" }}>
-          {errorMsg}
+        <div className="bg-red-100 text-red-700 border border-red-400 px-10 py-12 rounded-xl shadow-md text-center max-w-md">
+          <div className="flex justify-center mb-4">
+            <FaLock className="text-4xl text-maroon" />
+          </div>
+
+          <p className="mb-4 font-medium">{errorMsg}</p>
+
+          <button
+            onClick={goToHomePage}
+            className="bg-maroon text-white px-4 py-2 rounded hover:bg-red-800 transition"
+          >
+            Go back to Homepage
+          </button>
         </div>
-      )}
-      {errorMsg && (
-        <button onClick={goToHomePage} style={{ display: "block", margin: "20px auto" }}>
-          Go back to Homepage
-        </button>
       )}
     </div>
   );
