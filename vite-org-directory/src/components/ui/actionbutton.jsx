@@ -6,7 +6,7 @@ const ActionButton = ({ type = "home" }) => {
 
   const handleClick = () => {
     if (type === "home") {
-      navigate("/homepage");
+      navigate("/");
     } else if (type === "top") {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
