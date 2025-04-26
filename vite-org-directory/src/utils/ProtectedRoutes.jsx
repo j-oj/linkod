@@ -12,29 +12,34 @@ const ProtectedRoutes = ({ allowedRole }) => {
       const {
         data: { session },
       } = await supabase.auth.getSession();
-
+      console.log('Session:', session);
+  
       if (!session) {
+        console.error("No active session found. Redirecting to login.");
         setIsAllowed(false);
         return;
       }
-
+  
       const { data: { user } } = await supabase.auth.getUser();
-
+      console.log('User:', user);
+  
       const { data: roleData, error: roleError } = await supabase
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id)
         .single();
-
+      console.log('Role data:', roleData);
+      console.error('Role error:', roleError);
+  
       if (roleError || !roleData?.role) {
         setIsAllowed(false);
         return;
       }
-
+  
       setCurrentRole(roleData.role); // Store user role
       setIsAllowed(roleData.role === allowedRole);
     };
-
+  
     verifyAccess();
   }, [allowedRole]);
 
@@ -51,6 +56,9 @@ const ProtectedRoutes = ({ allowedRole }) => {
       return <Navigate to="/admin-dashboard" replace />;
     }
   }
+
+  console.log("Current role:", currentRole);
+  console.log("Allowed role:", allowedRole);
 
   return <Outlet />;
 };

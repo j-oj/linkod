@@ -30,6 +30,7 @@ const Navbar = ({ userRole }) => {
       if (error) {
         console.error("Error fetching user:", error.message);
       } else {
+        console.log("Navbar user:", user);
         setUser(user);
       }
     };
