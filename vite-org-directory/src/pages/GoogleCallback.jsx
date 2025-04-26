@@ -14,38 +14,49 @@ const GoogleCallback = () => {
   useEffect(() => {
     const checkSessionAndRole = async () => {
       try {
+        // Fetch the authenticated user
         const {
           data: { user },
           error: userError,
         } = await supabase.auth.getUser();
-
+  
         if (userError || !user) {
+          console.error("User error:", userError);
           setErrorMsg("Sorry, you are not authorized to view this page.");
           return;
         }
-
+        console.log("User:", user); // Log the user data
+  
+        // Fetch the session
         const {
           data: { session },
           error: sessionError,
         } = await supabase.auth.getSession();
+  
         if (sessionError || !session) {
+          console.error("Session error:", sessionError);
           setErrorMsg("Session expired. Please log in again.");
           return;
         }
-
+        console.log("Session:", session); // Log the session data
+  
+        // Fetch the user's role from the database
         const { data: roleData, error: roleError } = await supabase
           .from("user_roles")
           .select("role")
           .eq("user_id", user.id)
           .single();
-
+  
         if (roleError || !roleData) {
+          console.error("Role error:", roleError);
           setErrorMsg("Sorry, you are not authorized to view this page.");
           return;
         }
-
+        console.log("Role data:", roleData); // Log the role data
+  
+        // Check the user's role and navigate accordingly
         const userRole = roleData.role;
-
+  
         if (userRole === "superadmin") {
           navigate("/superadmin-dashboard");
         } else if (userRole === "admin") {
@@ -58,7 +69,7 @@ const GoogleCallback = () => {
         setErrorMsg("An unexpected error occurred. Please try again.");
       }
     };
-
+  
     checkSessionAndRole();
   }, [navigate]);
 

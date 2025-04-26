@@ -3,23 +3,26 @@ import { useParams } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 
 const OrgPage = () => {
-  const { orgId } = useParams();
+  const { slug } = useParams(); // Use slug from the URL
   const [org, setOrg] = useState(null);
 
   useEffect(() => {
     const fetchOrg = async () => {
       const { data, error } = await supabase
-        .from("organizations")
+        .from("organization") // Ensure the table name matches your database
         .select("*")
-        .eq("id", orgId)
+        .eq("slug", slug) // Use slug instead of id
         .single();
 
-      if (error) console.error("Error fetching org:", error);
-      else setOrg(data);
+      if (error) {
+        console.error("Error fetching org:", error);
+      } else {
+        setOrg(data);
+      }
     };
 
     fetchOrg();
-  }, [orgId]);
+  }, [slug]);
 
   if (!org) return <p>Loading...</p>;
 
