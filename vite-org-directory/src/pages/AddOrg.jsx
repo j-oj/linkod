@@ -28,7 +28,7 @@ const AddOrg = () => {
     twitter: "",
     instagram: "",
     linkedin: "",
-    website: "", // Added website URL to socialLinks
+    website: "", // Added website URL to social inks
   });
   
 
@@ -69,7 +69,7 @@ const AddOrg = () => {
 
     if (logoFile) {
       const fileExt = logoFile.name.split(".").pop();
-      const filePath = `logos/${Date.now()}.${fileExt}`;
+      const filePath = `logos/${slug}-logo.${fileExt}`;
       const { error: uploadError } = await supabase.storage
         .from("org-logos")
         .upload(filePath, logoFile);
