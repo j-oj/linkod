@@ -28,7 +28,7 @@ function App() {
             <Route path="/superadmin-dashboard" element={<SAdminDashboard />} />
             <Route path="/add-organization" element={<AddOrg />} />
             <Route path="/add-org" element={<AddOrg />} />
-            <Route path="/orgs/:orgId" element={<OrgPage />} />
+            <Route path="/orgs/:slug" element={<OrgPage />} />
           </Route>
         </Route>
       </Routes>
