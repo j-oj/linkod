@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { supabase } from "../supabaseClient";
+import Loading from "../components/Loading";
 
 const ProtectedRoutes = ({ allowedRole }) => {
   const [isAllowed, setIsAllowed] = useState(null);
@@ -12,39 +13,45 @@ const ProtectedRoutes = ({ allowedRole }) => {
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      console.log('Session:', session);
-  
+      console.log("Session:", session);
+
       if (!session) {
         console.error("No active session found. Redirecting to login.");
         setIsAllowed(false);
         return;
       }
-  
-      const { data: { user } } = await supabase.auth.getUser();
-      console.log('User:', user);
-  
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      console.log("User:", user);
+
       const { data: roleData, error: roleError } = await supabase
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id)
         .single();
-      console.log('Role data:', roleData);
-      console.error('Role error:', roleError);
-  
+      console.log("Role data:", roleData);
+      console.error("Role error:", roleError);
+
       if (roleError || !roleData?.role) {
         setIsAllowed(false);
         return;
       }
-  
+
       setCurrentRole(roleData.role); // Store user role
       setIsAllowed(roleData.role === allowedRole);
     };
-  
+
     verifyAccess();
   }, [allowedRole]);
 
   if (isAllowed === null) {
-    return <div>Loading...</div>; 
+    return (
+      <>
+        <Loading />
+      </>
+    );
   }
 
   // Keep authenticated users on their own dashboard
@@ -53,7 +60,7 @@ const ProtectedRoutes = ({ allowedRole }) => {
       return <Navigate to="/superadmin-dashboard" replace />;
     }
     if (currentRole === "admin") {
-      return <Navigate to="/admin-dashboard" replace />;
+      return <Navigate to="/" replace />;
     }
   }
 

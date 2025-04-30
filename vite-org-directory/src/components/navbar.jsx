@@ -3,19 +3,20 @@ import { FaMoon, FaUserCircle } from "react-icons/fa";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 
-const Navbar = ({ userRole }) => {
+const Navbar = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [user, setUser] = useState(null);
+  const [userRole, setUserRole] = useState("loading");
+  const [adminOrgSlug, setAdminOrgSlug] = useState(null);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setDropdownOpen(false);
+        setTimeout(() => setDropdownOpen(false), 100);
       }
     };
-
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
@@ -23,15 +24,39 @@ const Navbar = ({ userRole }) => {
   useEffect(() => {
     const getUser = async () => {
       const {
-        data: { user },
-        error,
+        data: { user: loggedInUser },
       } = await supabase.auth.getUser();
 
-      if (error) {
-        console.error("Error fetching user:", error.message);
-      } else {
-        console.log("Navbar user:", user);
-        setUser(user);
+      if (!loggedInUser) {
+        setUserRole("guest");
+        return;
+      }
+
+      setUser(loggedInUser);
+
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", loggedInUser.id)
+        .single();
+
+      const role = roleData?.role || "guest";
+      setUserRole(role);
+
+      if (role === "admin") {
+        const { data: adminData } = await supabase
+          .from("admin")
+          .select("org_id")
+          .eq("admin_id", loggedInUser.id)
+          .maybeSingle();
+
+        const { data: orgData } = await supabase
+          .from("organization")
+          .select("slug")
+          .eq("org_id", adminData?.org_id)
+          .single();
+
+        setAdminOrgSlug(orgData?.slug);
       }
     };
 
@@ -39,36 +64,46 @@ const Navbar = ({ userRole }) => {
   }, []);
 
   const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      console.error("Logout failed:", error.message);
-    } else {
-      navigate("/login");
-    }
+    await supabase.auth.signOut();
+    navigate("/login");
   };
 
   const avatarUrl = user?.user_metadata?.avatar_url;
-
-  const shouldShowDropdown =
-    (userRole === "admin" || userRole === "superadmin") && user;
 
   return (
     <div className="bg-maroon text-white px-6 py-4 flex justify-between items-center relative">
       <div className="flex items-center gap-2">
         <img src="/templogo.png" alt="logo" className="w-12 md:w-14" />
-        <span className="text-xl md:text-2xl font-bold">Website Name</span>
+        <Link to="/">
+          <span className="text-xl md:text-2xl font-bold">ISK</span>
+          <span className="text-xl md:text-2xl font-bold text-yellow-400">
+            Org
+          </span>
+        </Link>
       </div>
 
       <div className="flex items-center gap-4 relative" ref={dropdownRef}>
-        <button className="text-xl">
+        <button
+          className="text-xl"
+          onClick={() => document.body.classList.toggle("dark")}
+        >
           <FaMoon />
         </button>
 
-        {shouldShowDropdown && (
+        {userRole === "guest" && (
+          <Link
+            to="/login"
+            className="px-4 py-2 bg-white text-maroon rounded-md font-medium hover:bg-gray-200 transition"
+          >
+            Login
+          </Link>
+        )}
+
+        {(userRole === "admin" || userRole === "superadmin") && (
           <div className="relative">
             <button
-              onClick={() => setDropdownOpen((prev) => !prev)}
-              className="w-10 h-10 rounded-full bg-white border border-white flex items-center justify-center text-maroon text-xl transition hover:scale-110 overflow-hidden"
+              onClick={() => setDropdownOpen(!dropdownOpen)}
+              className="w-10 h-10 rounded-full bg-white overflow-hidden flex justify-center items-center transition-transform transform hover:scale-110"
             >
               {avatarUrl ? (
                 <img
@@ -77,7 +112,7 @@ const Navbar = ({ userRole }) => {
                   className="w-full h-full object-cover rounded-full"
                 />
               ) : (
-                <FaUserCircle className="w-6 h-6" />
+                <FaUserCircle className="text-maroon text-xl" />
               )}
             </button>
 
@@ -92,47 +127,44 @@ const Navbar = ({ userRole }) => {
                   </p>
                 </div>
                 <ul className="text-sm">
-                  <li className="hover:bg-gray-200 px-4 py-2 cursor-pointer">
-                    <Link to="/" className="block w-full h-full">
+                  <li>
+                    <Link to="/" className="block px-4 py-2 hover:bg-gray-200">
                       Home
                     </Link>
                   </li>
-
                   {userRole === "admin" && (
-                    <li className="hover:bg-gray-200 px-4 py-2 cursor-pointer">
+                    <li>
                       <Link
-                        to="/admin-dashboard"
-                        className="block w-full h-full"
+                        to={`/orgs/${adminOrgSlug}`}
+                        className="block px-4 py-2 hover:bg-gray-200"
                       >
-                        Admin Dashboard
+                        Edit Organization
                       </Link>
                     </li>
                   )}
-
                   {userRole === "superadmin" && (
                     <>
-                      <li className="hover:bg-gray-200 px-4 py-2 cursor-pointer">
+                      <li>
                         <Link
                           to="/superadmin-dashboard"
-                          className="block w-full h-full"
+                          className="block px-4 py-2 hover:bg-gray-200"
                         >
                           Super Admin Dashboard
                         </Link>
                       </li>
-                      <li className="hover:bg-gray-200 px-4 py-2 cursor-pointer">
+                      <li>
                         <Link
                           to="/add-organization"
-                          className="block w-full h-full"
+                          className="block px-4 py-2 hover:bg-gray-200"
                         >
                           Add Organization
                         </Link>
                       </li>
                     </>
                   )}
-
                   <li
                     onClick={handleLogout}
-                    className="hover:bg-gray-200 px-4 py-2 cursor-pointer text-red-600"
+                    className="px-4 py-2 text-red-600 hover:bg-gray-200 cursor-pointer"
                   >
                     Log out
                   </li>
