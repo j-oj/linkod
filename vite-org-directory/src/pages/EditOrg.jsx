@@ -56,7 +56,7 @@ const EditOrg = () => {
       });
 
       const { data: tagData, error: tagError } = await supabase
-        .from("organization_tag")
+        .from("organization_tags")
         .select("tag_id")
         .eq("org_id", data.id);
 
@@ -164,14 +164,14 @@ const EditOrg = () => {
     }
 
     // Inside handleSubmit (after updating the org)
-    await supabase.from("organization_tag").delete().eq("org_id", data.id); // remove old tags
+    await supabase.from("organization_tags").delete().eq("org_id", data.id); // remove old tags
 
     const tagInserts = selectedTags.map((tagId) => ({
       org_id: data.id,
       tag_id: tagId,
     }));
 
-    await supabase.from("organization_tag").insert(tagInserts);
+    await supabase.from("organization_tags").insert(tagInserts);
   };
 
   useEffect(() => {
