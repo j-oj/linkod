@@ -1,76 +1,68 @@
 import React, { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 import Navbar from "../components/navbar";
 import Loading from "../components/Loading";
+import { FaFilter, FaChevronDown } from "react-icons/fa";
 
 const Homepage = () => {
   const [orgs, setOrgs] = useState([]);
+  const [filteredOrgs, setFilteredOrgs] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedTags, setSelectedTags] = useState([]);
+  const [allTags, setAllTags] = useState([]);
   const [userRole, setUserRole] = useState("guest");
   const [loading, setLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const navigate = useNavigate();
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  // Check authentication status
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        console.log("Checking auth status...");
         const { data } = await supabase.auth.getSession();
         const isLoggedIn = !!data.session;
-        console.log("Is user logged in:", isLoggedIn);
-        setIsAuthenticated(isLoggedIn);
 
-        // Get user role from localStorage
-        const storedRole = localStorage.getItem("userRole");
-        if (storedRole) {
-          console.log("User role from storage:", storedRole);
-          setUserRole(storedRole);
-        } else if (isLoggedIn) {
-          // Fetch user role if authenticated but role not in localStorage
+        if (isLoggedIn) {
           const { user } = data.session;
-          const { data: userData, error: userError } = await supabase
+          const { data: userData } = await supabase
             .from("user_roles")
             .select("role")
             .eq("user_id", user.id)
             .single();
 
-          if (!userError && userData) {
-            console.log("Fetched user role:", userData.role);
-            localStorage.setItem("userRole", userData.role);
-            setUserRole(userData.role);
-          } else {
-            console.log("Setting default role: user");
-            localStorage.setItem("userRole", "user");
-            setUserRole("user");
-          }
+          const role = userData?.role || "user";
+          localStorage.setItem("userRole", role);
+          setUserRole(role);
+        } else {
+          localStorage.removeItem("userRole");
+          setUserRole("guest");
         }
       } catch (error) {
         console.error("Auth check error:", error);
+        setUserRole("guest");
       }
     };
 
     checkAuth();
   }, []);
 
-  // Fetch organizations
   useEffect(() => {
     const fetchOrgs = async () => {
       setLoading(true);
       try {
-        console.log("Fetching organizations...");
-        const { data, error } = await supabase.from("organization").select("*");
+        const { data, error } = await supabase
+          .from("organization")
+          .select("*, organization_tags(tag:tag_id (category))")
+          .order("org_name", { ascending: true });
 
-        if (error) {
-          console.error("Error fetching organizations:", error.message);
-          setOrgs([]);
-        } else {
-          console.log("Organizations fetched:", data.length);
-          setOrgs(data || []);
-        }
+        if (error) throw error;
+
+        setOrgs(data || []);
+        setFilteredOrgs(data || []);
+        extractTags(data || []);
       } catch (error) {
-        console.error("Unexpected error fetching orgs:", error);
+        console.error("Error fetching orgs:", error);
         setOrgs([]);
+        setFilteredOrgs([]);
       } finally {
         setLoading(false);
       }
@@ -79,38 +71,173 @@ const Homepage = () => {
     fetchOrgs();
   }, []);
 
+  const extractTags = (orgsList) => {
+    const tagSet = new Set();
+    orgsList.forEach((org) => {
+      const tags = org.organization_tags?.map((t) => t.tag?.category) || [];
+      tags.forEach((tag) => tag && tagSet.add(tag.trim()));
+    });
+    setAllTags([...tagSet].sort());
+  };
+
+  const handleSearch = (e) => {
+    const term = e.target.value;
+    setSearchTerm(term);
+    filterOrgs(term, selectedTags);
+  };
+
+  const handleTagFilter = (tag) => {
+    let updatedTags;
+
+    if (selectedTags.includes(tag)) {
+      updatedTags = selectedTags.filter((t) => t !== tag);
+    } else {
+      updatedTags = [...selectedTags, tag];
+    }
+
+    setSelectedTags(updatedTags);
+    filterOrgs(searchTerm, updatedTags);
+    setIsDropdownOpen(false);
+  };
+
+  const clearFilter = () => {
+    setSelectedTags([]);
+    filterOrgs(searchTerm, []);
+  };
+
+  const filterOrgs = (term, tags) => {
+    const filtered = orgs.filter((org) => {
+      const matchesSearch = org.org_name
+        .toLowerCase()
+        .includes(term.toLowerCase());
+
+      const orgTags = org.organization_tags?.map((t) => t.tag?.category) || [];
+      const matchesAllTags = tags.every((tag) => orgTags.includes(tag));
+
+      return matchesSearch && matchesAllTags;
+    });
+
+    setFilteredOrgs(filtered);
+  };
+
   if (loading) {
-    return <Loading />;
+    return (
+      <>
+        <Loading />
+        <div className="text-center mt-4 text-gray-500 text-sm">
+          Loading organizations...
+        </div>
+      </>
+    );
   }
 
   return (
     <>
       <Navbar userRole={userRole} />
-      <div className="m-6">
-        <h1 className="text-2xl font-bold mb-4">Organizations</h1>
+      <div className="p-4 max-w-6xl mx-auto">
+        {/* Search Bar */}
+        <div className="flex flex-col sm:flex-row gap-4 mb-4">
+          <div className="relative flex-grow">
+            <input
+              type="text"
+              placeholder="Search organizations..."
+              value={searchTerm}
+              onChange={handleSearch}
+              className="w-full border border-gray-300 rounded-full py-2 px-4 pr-10 focus:outline-none focus:ring-2 focus:ring-maroon"
+            />
+            <FaFilter className="absolute right-4 top-2.5 text-gray-400" />
+          </div>
+        </div>
 
-        {orgs.length > 0 ? (
-          <div className="flex overflow-x-auto space-x-6 p-4 bg-gray-100 rounded-md">
-            {orgs.map((org) => (
+        {/* Tag Dropdown */}
+        {allTags.length > 0 && (
+          <div className="mb-4">
+            <div className="relative">
+              <button
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className="w-full sm:w-64 flex justify-between items-center px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-maroon"
+              >
+                <span className="text-gray-700">
+                  {selectedTags.length > 0
+                    ? "Filter by Tag"
+                    : "Select categories to filter"}
+                </span>
+                <FaChevronDown
+                  className={`ml-2 transition-transform ${
+                    isDropdownOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+
+              {isDropdownOpen && (
+                <div className="absolute z-10 mt-1 w-full sm:w-64 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  {allTags.map((tag) => (
+                    <div
+                      key={tag}
+                      onClick={() => handleTagFilter(tag)}
+                      className={`px-4 py-2 cursor-pointer hover:bg-gray-100 ${
+                        selectedTags.includes(tag)
+                          ? "bg-gray-200 font-semibold"
+                          : ""
+                      }`}
+                    >
+                      {tag}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Selected Tags */}
+        {selectedTags.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-4">
+            {selectedTags.map((tag) => (
+              <span
+                key={tag}
+                className="flex items-center bg-maroon text-white text-sm px-3 py-1 rounded-full"
+              >
+                {tag}
+                <button
+                  onClick={() => handleTagFilter(tag)}
+                  className="ml-2 text-white hover:text-gray-300"
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+            <button
+              onClick={clearFilter}
+              className="text-sm text-gray-500 underline ml-2"
+            >
+              Clear all
+            </button>
+          </div>
+        )}
+
+        {/* Org Cards */}
+        {filteredOrgs.length > 0 ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            {filteredOrgs.map((org) => (
               <Link
                 key={org.org_id}
                 to={`/orgs/${org.slug}`}
-                className="min-w-[200px] bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition"
+                className="bg-white rounded-xl shadow hover:shadow-lg transition-all duration-200 p-4 flex flex-col items-center text-center dark:bg-gray-800 dark:text-white dark:hover:shadow-lg"
               >
-                {org.org_logo && (
-                  <img
-                    src={org.org_logo}
-                    alt={org.org_name}
-                    className="w-full h-40 object-contain mb-2"
-                  />
-                )}
-                <h2 className="text-center font-semibold">{org.org_name}</h2>
+                <img
+                  src={org.org_logo || "https://via.placeholder.com/150"}
+                  alt={org.org_name}
+                  className="w-24 h-24 object-contain mb-3"
+                />
+                <h2 className="font-semibold text-sm">{org.org_name}</h2>
               </Link>
             ))}
           </div>
         ) : (
-          <div className="p-4 bg-gray-100 rounded-md text-center">
-            No organizations found.
+          <div className="text-center text-gray-500 mt-10">
+            No organizations found.{" "}
+            {orgs.length > 0 ? "Try adjusting your filters." : ""}
           </div>
         )}
       </div>
