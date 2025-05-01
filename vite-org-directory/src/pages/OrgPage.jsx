@@ -5,9 +5,12 @@ import Navbar from "../components/Navbar";
 import Loading from "../components/Loading";
 import { FaFacebook, FaInstagram, FaEnvelope } from "react-icons/fa";
 
+const DEFAULT_LOGO_URL = "https://via.placeholder.com/100";
+
 const OrgPage = () => {
   const { slug } = useParams();
   const [org, setOrg] = useState(null);
+  const [tags, setTags] = useState([]);
   const [user, setUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -17,56 +20,59 @@ const OrgPage = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch organization data with a cache-busting approach
-        const timestamp = new Date().getTime();
+        // Fetch organization
         const { data: orgData, error: orgError } = await supabase
           .from("organization")
           .select("*")
           .eq("slug", slug)
           .single();
 
-        if (orgError) {
-          console.error("Organization fetch error:", orgError);
+        if (orgError || !orgData) {
           throw new Error("Failed to fetch organization data.");
         }
 
-        console.log("Fetched organization data:", orgData);
         setOrg(orgData);
+
+        // Fetch organization tags
+        const { data: tagData, error: tagError } = await supabase
+          .from("organization_tags")
+          .select("tag_id, tag:tag_id(category)")
+          .eq("org_id", orgData.org_id);
+
+        if (tagError) {
+          console.error("Failed to fetch tags:", tagError);
+        } else {
+          const tagCategories = tagData
+            .map((t) => t.tag?.category)
+            .filter(Boolean);
+          setTags(tagCategories);
+        }
 
         // Fetch current user
         const { data: userData, error: userError } =
           await supabase.auth.getUser();
-
-        if (userError) {
-          console.error("User fetch error:", userError);
-        } else if (userData?.user) {
+        if (!userError && userData?.user) {
           setUser(userData.user);
+          const { data: roleData } = await supabase
+            .from("user_roles")
+            .select("role")
+            .eq("user_id", userData.user.id)
+            .single();
 
-          try {
-            const { data: userRoleData, error: roleError } = await supabase
-              .from("user_roles")
-              .select("role")
-              .eq("user_id", userData.user.id)
+          if (roleData?.role === "admin") {
+            const { data: adminData } = await supabase
+              .from("admin")
+              .select("org_id")
+              .eq("admin_id", userData.user.id)
               .single();
 
-            if (!roleError && userRoleData?.role === "admin") {
-              const { data: adminData, error: adminError } = await supabase
-                .from("admin")
-                .select("org_id")
-                .eq("admin_id", userData.user.id)
-                .single();
-
-              if (!adminError && adminData?.org_id === orgData?.org_id) {
-                setIsAdmin(true);
-              }
+            if (adminData?.org_id === orgData.org_id) {
+              setIsAdmin(true);
             }
-          } catch (adminCheckError) {
-            console.error("Admin check error:", adminCheckError);
-            // Don't throw here, just default to not an admin
           }
         }
       } catch (err) {
-        console.error("Overall error:", err);
+        console.error("Error:", err);
         setError(err.message);
       } finally {
         setLoading(false);
@@ -78,13 +84,7 @@ const OrgPage = () => {
 
   const handleEdit = () => navigate(`/edit-org/${slug}`);
 
-  // Handle loading and error states
-  if (loading)
-    return (
-      <>
-        <Loading />
-      </>
-    );
+  if (loading) return <Loading />;
 
   if (error)
     return (
@@ -96,7 +96,6 @@ const OrgPage = () => {
       </>
     );
 
-  // Check if organization exists
   if (!org)
     return (
       <>
@@ -130,7 +129,24 @@ const OrgPage = () => {
             </div>
           </div>
 
-          {/* About Section */}
+          {/* Tags */}
+          {tags.length > 0 && (
+            <div>
+              <h2 className="text-xl font-semibold mb-2">Tags</h2>
+              <div className="flex flex-wrap gap-2">
+                {tags.map((tag, idx) => (
+                  <span
+                    key={idx}
+                    className="bg-yellow-400 text-black px-3 py-1 rounded-full text-sm font-medium whitespace-nowrap"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* About */}
           <div>
             <h2 className="text-xl font-semibold mb-2">About</h2>
             <p className="text-gray-700 whitespace-pre-line">
@@ -138,7 +154,7 @@ const OrgPage = () => {
             </p>
           </div>
 
-          {/* Social Media Links */}
+          {/* Social Media */}
           {org.socmed_links && Object.keys(org.socmed_links).length > 0 && (
             <div>
               <h2 className="text-xl font-semibold mb-2">Social Media</h2>
@@ -184,7 +200,7 @@ const OrgPage = () => {
             </div>
           )}
 
-          {/* Application Info */}
+          {/* Applications */}
           {(org.socmed_links?.form || org.socmed_links?.dates) && (
             <div>
               <h2 className="text-xl font-semibold mb-2">Applications</h2>
@@ -210,7 +226,7 @@ const OrgPage = () => {
             </div>
           )}
 
-          {/* Placeholder Photo */}
+          {/* Org Photo */}
           <div>
             <h2 className="text-xl font-semibold mb-2">Org Photo</h2>
             <div className="w-full h-32 border border-dashed flex items-center justify-center rounded bg-white">
