@@ -19,7 +19,7 @@ const AddOrg = () => {
   const [email, setEmail] = useState("");
   const [logoFile, setLogoFile] = useState(null);
   const [president, setPresident] = useState("");
-  const [selectedTags, setSelectedTags] = useState([]);
+  const [tagInput, setTagInput] = useState("");
   const [applicationForm, setApplicationForm] = useState("");
   const [applicationDates, setApplicationDates] = useState("");
   const [websiteUrl, setWebsiteUrl] = useState(""); // Added website URL field
@@ -40,7 +40,7 @@ const AddOrg = () => {
     const fetchTags = async () => {
       const { data, error } = await supabase
         .from("tag")
-        .select("tag_id, category");
+        .select("tag_id, tag_name");
 
       if (error) {
         console.error("Error fetching tags:", error.message);
@@ -50,7 +50,7 @@ const AddOrg = () => {
       // Map the data to the required format for react-select
       const formattedTags = data.map((tag) => ({
         value: tag.tag_id,
-        label: tag.category,
+        label: tag.tag_name,
       }));
 
       setTagOptions(formattedTags);
@@ -59,39 +59,60 @@ const AddOrg = () => {
     fetchTags();
   }, []);
 
+  const [categories, setCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  
+  useEffect(() => {
+    const fetchCategories = async () => {
+      const { data, error } = await supabase.from("category").select("*");
+      if (error) {
+        console.error("Error fetching categories:", error.message);
+        return;
+      }
+      setCategories(data);
+    };
+  
+    fetchCategories();
+  }, []);
+  
+
   const handleAddOrg = async (e) => {
     e.preventDefault();
-
+  
     // Generate slug from acronym
     const slug = orgAcronym;
-
+  
     let logo_url = null;
-
+  
     if (logoFile) {
       const fileExt = logoFile.name.split(".").pop();
       const filePath = `logos/${slug}-logo.${fileExt}`;
+      console.log("Uploading file to:", filePath);
+  
       const { error: uploadError } = await supabase.storage
         .from("org-logos")
         .upload(filePath, logoFile);
-
+  
       if (uploadError) {
+        console.error("Upload Error:", uploadError);
         alert("Failed to upload logo.");
         return;
       }
-
+  
       const { data: publicUrlData } = supabase.storage
         .from("org-logos")
         .getPublicUrl(filePath);
-
+  
+      console.log("Public URL Data:", publicUrlData);
       logo_url = publicUrlData?.publicUrl;
     }
-
+  
     // Update socialLinks to include the website URL
     const updatedSocialLinks = {
       ...socialLinks,
-      website: websiteUrl
+      website: websiteUrl,
     };
-
+  
     const { data, error } = await supabase
       .from("organization")
       .insert([
@@ -99,38 +120,101 @@ const AddOrg = () => {
           org_name: orgName,
           org_logo: logo_url,
           president,
+          org_email: email,
           about: description,
           socmed_links: updatedSocialLinks, // Store social media links as JSON
+          application_form: applicationForm,
           application_dates: applicationDates,
           slug: orgAcronym,
+          category: selectedCategory,
         },
       ])
       .select();
-
+  
     if (error) {
       alert("Error adding organization: " + error.message);
-    } else {
-      // Store selected tags (many-to-many relationship with organizations)
-      const orgId = data[0].org_id;
-      const tagsData = selectedTags.map((tag) => ({
-        org_id: orgId,
-        tag_id: tag.value,
-      }));
+      return;
+    }
+  
+    const orgId = data[0].org_id;
+  
+    // Step 1: Normalize input tags
+    const inputTagNames = tagInput
+      .split(",")
+      .map((tag) => tag.trim().toLowerCase())
+      .filter((tag) => tag.length > 0); // Remove empty tags
+    console.log("Input Tag Names:", inputTagNames);
+  
+    // Step 2: Check existing tags in the `tag` table
+    const { data: existingTags, error: fetchTagsError } = await supabase
+      .from("tag")
+      .select("*")
+      .in("tag_name", inputTagNames);
+  
+    if (fetchTagsError) {
+      console.error("Error fetching existing tags:", fetchTagsError);
+      alert("Error fetching tags.");
+      return;
+    }
+  
+    console.log("Existing Tags:", existingTags);
+  
+    // Step 3: Find missing tags
+    const existingTagNames = existingTags.map((tag) => tag.tag_name.toLowerCase());
+    const missingTagNames = inputTagNames.filter(
+      (tagName) => !existingTagNames.includes(tagName)
+    );
+    console.log("Missing Tag Names:", missingTagNames);
+  
+    // Step 4: Insert missing tags into the `tag` table
+    let newTags = [];
+    if (missingTagNames.length > 0) {
+      console.log("Missing Tag Names:", missingTagNames);
 
-      if (tagsData.length > 0) {
-        const { error: tagError } = await supabase
-          .from("organization_tags")
-          .insert(tagsData);
+      const { data: insertedTags, error: insertTagsError } = await supabase
+        .from("tag")
+        .upsert(
+          missingTagNames.map((tagName) => ({ tag_name: tagName })), // Only insert tag_name
+          { onConflict: "tag_name" } // Prevent duplicate tag_name errors
+        )
+        .select();
 
-        if (tagError) {
-          alert("Error linking tags: " + tagError.message);
-        }
+      if (insertTagsError) {
+        console.error("Error inserting new tags:", insertTagsError);
+        alert("Error adding new tags.");
+        return;
       }
 
-      alert("Organization added successfully!");
-      navigate(`/orgs/${slug}`); // Navigate using the slug
+      console.log("Inserted or Upserted Tags:", insertedTags);
+      newTags = insertedTags;
     }
+      
+    // Combine existing and newly inserted tags
+    const allTags = [...existingTags, ...newTags];
+    console.log("All Tags:", allTags);
+  
+    // Step 5: Map tags to the organization in the `org_tag` table
+    const tagsData = allTags.map((tag) => ({
+      org_id: orgId,
+      tag_id: tag.tag_id,
+    }));
+    console.log("Tags Data for org_tag:", tagsData);
+  
+    if (tagsData.length > 0) {
+      const { error: tagError } = await supabase.from("org_tag").insert(tagsData);
+      if (tagError) {
+        console.error("Error inserting tags into org_tag:", tagError);
+        alert("Error linking tags: " + tagError.message);
+        return;
+      }
+  
+      console.log("Tags successfully linked to organization.");
+    }
+  
+    alert("Organization added successfully!");
+    navigate(`/orgs/${slug}`); // Navigate using the slug
   };
+  
 
   return (
     <>
@@ -162,6 +246,18 @@ const AddOrg = () => {
               placeholder="e.g. SPARCS or AMPLI"
             />
           </div>
+          
+          <div>
+            <label className="block mb-1 font-medium">Organization Email</label>
+            <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-2 border rounded-md bg-white"
+                required
+            />
+          </div>
+
 
           <div>
             <label className="block mb-1 font-medium">Led by (President)</label>
@@ -244,6 +340,7 @@ const AddOrg = () => {
             </div>
           </div>
 
+
           <div>
             <label className="block mb-1 font-medium">
               Application Form URL
@@ -266,18 +363,41 @@ const AddOrg = () => {
               placeholder="e.g., Jan 15 - Feb 28, 2025"
             />
           </div>
+          
+          <div>
+            <label className="block mb-1 font-medium">Category</label>
+            <Select
+              options={categories.map((cat) => ({
+                value: cat.category_id,
+                label: cat.category_name,
+              }))}
+              value={
+                categories
+                  .map((cat) => ({
+                    value: cat.category_id,
+                    label: cat.category_name,
+                  }))
+                  .find((option) => option.value === selectedCategory) || null
+              }
+              onChange={(selectedOption) => setSelectedCategory(selectedOption?.value || null)}
+              className="react-select-container"
+              classNamePrefix="react-select"
+              placeholder="Select category"
+              isClearable
+            />
+          </div>
 
           <div>
             <label className="block mb-1 font-medium">Tags</label>
-            <Select
-              options={tagOptions}
-              isMulti
-              onChange={(selected) => setSelectedTags(selected)}
-              className="react-select-container"
-              classNamePrefix="react-select"
-              placeholder="Select tags"
+            <input
+              type="text"
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              className="w-full px-4 py-2 border rounded-md bg-white"
+              placeholder="Enter tags separated by commas"
             />
-          </div>
+        </div>
+
 
           <div>
             <label className="block mb-1 font-medium">
