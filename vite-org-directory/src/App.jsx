@@ -8,7 +8,6 @@ import SAdminDashboard from "./pages/SAdminDashboard";
 import AddOrg from "./pages/AddOrg";
 import EditOrg from "./pages/EditOrg";
 import OrgPage from "./pages/OrgPage";
-import CreateAdmin from "./pages/CreateAdmin";
 
 import ProtectedRoutes from "./utils/ProtectedRoutes";
 import AppLayout from "./components/AppLayout";
@@ -35,7 +34,6 @@ function App() {
           <Route element={<ProtectedRoutes allowedRole="superadmin" />}>
             <Route path="/superadmin-dashboard" element={<SAdminDashboard />} />
             <Route path="/add-organization" element={<AddOrg />} />
-            <Route path="/create-admin" element={<CreateAdmin />} />
           </Route>
         </Route>
       </Routes>
