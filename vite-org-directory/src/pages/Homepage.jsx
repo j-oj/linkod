@@ -51,7 +51,7 @@ const Homepage = () => {
       try {
         const { data, error } = await supabase
           .from("organization")
-          .select("*, organization_tags(tag:tag_id (category))")
+          .select("*, org_tag(tag:tag_id (tag_name))")
           .order("org_name", { ascending: true });
 
         if (error) throw error;
@@ -74,7 +74,7 @@ const Homepage = () => {
   const extractTags = (orgsList) => {
     const tagSet = new Set();
     orgsList.forEach((org) => {
-      const tags = org.organization_tags?.map((t) => t.tag?.category) || [];
+      const tags = org.org_tag?.map((t) => t.tag?.tag_name) || [];
       tags.forEach((tag) => tag && tagSet.add(tag.trim()));
     });
     setAllTags([...tagSet].sort());
@@ -111,7 +111,7 @@ const Homepage = () => {
         .toLowerCase()
         .includes(term.toLowerCase());
 
-      const orgTags = org.organization_tags?.map((t) => t.tag?.category) || [];
+      const orgTags = org.org_tag?.map((t) => t.tag?.tag_name) || [];
       const matchesAllTags = tags.every((tag) => orgTags.includes(tag));
 
       return matchesSearch && matchesAllTags;

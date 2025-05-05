@@ -10,7 +10,7 @@ const DEFAULT_LOGO_URL = "https://via.placeholder.com/100";
 const OrgPage = () => {
   const { slug } = useParams();
   const [org, setOrg] = useState(null);
-  const [tags, setTags] = useState([]);
+  const [tags, setTags] = useState([]); // For the tags
   const [user, setUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -20,54 +20,78 @@ const OrgPage = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch organization
+        // Fetch organization with category name
         const { data: orgData, error: orgError } = await supabase
           .from("organization")
-          .select("*")
+          .select(`
+            org_id,
+            org_name,
+            org_logo,
+            president,
+            org_email,
+            about,
+            socmed_links,
+            application_form,
+            application_dates,
+            slug,
+            category (category_name)
+          `)
           .eq("slug", slug)
           .single();
-
+  
         if (orgError || !orgData) {
           throw new Error("Failed to fetch organization data.");
         }
-
+  
         setOrg(orgData);
-
-        // Fetch organization tags
+  
+        // Fetch tags (from org_tag table, referencing tag table)
         const { data: tagData, error: tagError } = await supabase
-          .from("organization_tags")
-          .select("tag_id, tag:tag_id(category)")
+          .from("org_tag")
+          .select("tag_id, tag:tag_id(tag_name)") // Join with tag table
           .eq("org_id", orgData.org_id);
-
+  
         if (tagError) {
           console.error("Failed to fetch tags:", tagError);
         } else {
-          const tagCategories = tagData
-            .map((t) => t.tag?.category)
-            .filter(Boolean);
-          setTags(tagCategories);
+          const tagNames = tagData.map((t) => t.tag?.tag_name).filter(Boolean);
+          setTags(tagNames);
         }
-
+  
         // Fetch current user
         const { data: userData, error: userError } =
           await supabase.auth.getUser();
         if (!userError && userData?.user) {
           setUser(userData.user);
-          const { data: roleData } = await supabase
+  
+          // Fetch user role
+          const { data: roleData, error: roleError } = await supabase
             .from("user_roles")
             .select("role")
             .eq("user_id", userData.user.id)
             .single();
-
-          if (roleData?.role === "admin") {
-            const { data: adminData } = await supabase
-              .from("admin")
-              .select("org_id")
-              .eq("admin_id", userData.user.id)
-              .single();
-
-            if (adminData?.org_id === orgData.org_id) {
+  
+          if (roleError) {
+            console.error("Error fetching user role:", roleError);
+          } else {
+            console.log("User Role:", roleData?.role);
+  
+            if (roleData?.role === "superadmin") {
+              // Superadmin can edit all organizations
               setIsAdmin(true);
+            } else if (roleData?.role === "admin") {
+              // Admin can only edit their own organization
+              const { data: adminData, error: adminError } = await supabase
+                .from("admin")
+                .select("org_id")
+                .eq("admin_id", userData.user.id)
+                .single();
+  
+              if (adminError) {
+                console.error("Error fetching admin data:", adminError);
+              } else if (adminData?.org_id === orgData.org_id) {
+                setIsAdmin(true);
+              }
             }
           }
         }
@@ -78,7 +102,7 @@ const OrgPage = () => {
         setLoading(false);
       }
     };
-
+  
     fetchData();
   }, [slug]);
 
@@ -125,6 +149,21 @@ const OrgPage = () => {
               <p className="text-gray-600">
                 Led by:{" "}
                 <span className="font-medium">{org.president || "N/A"}</span>
+              </p>
+              <p className="text-gray-600">
+                Category:{" "}
+                <span className="font-medium">
+                  {org.category?.category_name || "Uncategorized"}
+                </span>
+              </p>
+              <p className="text-gray-600">
+                Email:{" "}
+                <a
+                  href={`mailto:${org.org_email}`}
+                  className="text-blue-500 underline"
+                >
+                  {org.org_email || "N/A"}
+                </a>
               </p>
             </div>
           </div>
@@ -226,9 +265,34 @@ const OrgPage = () => {
             </div>
           )}
 
+          {(org.application_form || org.application_dates) && (
+            <div>
+              <h2 className="text-xl font-semibold mb-2">Applications</h2>
+              {org.application_form && (
+                <p className="mb-1">
+                  <span className="font-medium">Form:</span>{" "}
+                  <a
+                    href={org.application_form}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-500 underline"
+                  >
+                    {org.application_form}
+                  </a>
+                </p>
+              )}
+              {org.application_dates && (
+                <p>
+                  <span className="font-medium">Dates:</span>{" "}
+                  {org.application_dates}
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Org Photo */}
           <div>
-            <h2 className="text-xl font-semibold mb-2">Org Photo</h2>
+            <h2 className="text-xl font-semibold mb-2">Featured Photos</h2>
             <div className="w-full h-32 border border-dashed flex items-center justify-center rounded bg-white">
               <span className="text-gray-400">Photo Placeholder</span>
             </div>
