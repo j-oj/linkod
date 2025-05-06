@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { FaMoon, FaUserCircle } from "react-icons/fa";
-import { Link, useNavigate } from "react-router-dom";
+import { FaMoon } from "react-icons/fa";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 
 const Navbar = () => {
@@ -8,8 +8,12 @@ const Navbar = () => {
   const [user, setUser] = useState(null);
   const [userRole, setUserRole] = useState("loading");
   const [adminOrgSlug, setAdminOrgSlug] = useState(null);
+  const [avatarUrl, setAvatarUrl] = useState(null);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const isLoginPage = location.pathname === "/login";
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -25,6 +29,7 @@ const Navbar = () => {
     const getUser = async () => {
       const {
         data: { user: loggedInUser },
+        error,
       } = await supabase.auth.getUser();
 
       if (!loggedInUser) {
@@ -34,6 +39,59 @@ const Navbar = () => {
 
       setUser(loggedInUser);
 
+      // For Google OAuth logins, the avatar is typically stored in a few possible places
+      // Let's check all possible locations
+      const metadata = loggedInUser.user_metadata || {};
+      const rawMetadata = loggedInUser.raw_user_meta_data || {};
+
+      // Google OAuth specifics
+      const identities = loggedInUser.identities || [];
+      const googleIdentity = identities.find((id) => id.provider === "google");
+      const googleData = googleIdentity?.identity_data || {};
+
+      const fullName =
+        metadata.full_name ||
+        rawMetadata.full_name ||
+        googleData.name ||
+        loggedInUser.email?.split("@")[0] ||
+        "User";
+
+      let avatar =
+        googleData.avatar_url || // From Google identity data
+        googleData.picture || // Alternative Google picture field
+        metadata.avatar_url || // From user metadata
+        rawMetadata.avatar_url || // From raw metadata
+        metadata.picture || // Alternative field name
+        null;
+
+      console.log("User data:", {
+        metadata,
+        rawMetadata,
+        googleIdentity,
+        googleData,
+        avatar,
+      });
+
+      // If no avatar, create fallback and update user
+      if (!avatar) {
+        avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+          fullName
+        )}`;
+
+        try {
+          // Update the user metadata with the fallback avatar
+          await supabase.auth.updateUser({
+            data: { avatar_url: avatar },
+          });
+        } catch (updateError) {
+          console.error("Error updating avatar URL:", updateError);
+        }
+      }
+
+      // Set the avatar URL regardless of its source
+      setAvatarUrl(avatar);
+
+      // Fetch role
       const { data: roleData } = await supabase
         .from("user_roles")
         .select("role")
@@ -43,6 +101,7 @@ const Navbar = () => {
       const role = roleData?.role || "guest";
       setUserRole(role);
 
+      // If admin, fetch org slug
       if (role === "admin") {
         const { data: adminData } = await supabase
           .from("admin")
@@ -50,13 +109,15 @@ const Navbar = () => {
           .eq("admin_id", loggedInUser.id)
           .maybeSingle();
 
-        const { data: orgData } = await supabase
-          .from("organization")
-          .select("slug")
-          .eq("org_id", adminData?.org_id)
-          .single();
+        if (adminData?.org_id) {
+          const { data: orgData } = await supabase
+            .from("organization")
+            .select("slug")
+            .eq("org_id", adminData.org_id)
+            .single();
 
-        setAdminOrgSlug(orgData?.slug);
+          setAdminOrgSlug(orgData?.slug);
+        }
       }
     };
 
@@ -67,8 +128,6 @@ const Navbar = () => {
     await supabase.auth.signOut();
     navigate("/login");
   };
-
-  const avatarUrl = user?.user_metadata?.avatar_url;
 
   return (
     <div className="bg-maroon text-white px-6 py-4 flex justify-between items-center relative">
@@ -83,6 +142,23 @@ const Navbar = () => {
       </div>
 
       <div className="flex items-center gap-4 relative" ref={dropdownRef}>
+        {(userRole === "admin" || userRole === "superadmin") && (
+          <div className="hidden md:block text-sm mr-3">
+            <span>
+              Maayong adlaw,{" "}
+              {
+                (
+                  user?.user_metadata?.full_name ||
+                  user?.raw_user_meta_data?.full_name ||
+                  user?.email?.split("@")[0] ||
+                  "User"
+                ).split(" ")[0]
+              }
+              !
+            </span>
+          </div>
+        )}
+
         <button
           className="text-xl"
           onClick={() => document.body.classList.toggle("dark")}
@@ -90,7 +166,7 @@ const Navbar = () => {
           <FaMoon />
         </button>
 
-        {userRole === "guest" && (
+        {userRole === "guest" && !isLoginPage && (
           <Link
             to="/login"
             className="px-4 py-2 bg-white text-maroon rounded-md font-medium hover:bg-gray-200 transition"
@@ -110,20 +186,38 @@ const Navbar = () => {
                   src={avatarUrl}
                   alt="avatar"
                   className="w-full h-full object-cover rounded-full"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                      user?.user_metadata?.full_name ||
+                        user?.email?.split("@")[0] ||
+                        "User"
+                    )}`;
+                  }}
                 />
               ) : (
-                <FaUserCircle className="text-maroon text-xl" />
+                <div className="w-full h-full bg-gray-300 flex items-center justify-center text-gray-600 font-bold">
+                  {(user?.email?.charAt(0) || "U").toUpperCase()}
+                </div>
               )}
             </button>
 
             {dropdownOpen && (
               <div className="absolute right-0 mt-2 w-56 bg-gray-100 text-black rounded-md shadow-md z-50 border border-gray-200">
                 <div className="p-3 border-b">
-                  <p className="font-semibold text-sm">
-                    {user?.user_metadata?.full_name || "Unnamed User"}
+                  <p className="font-semibold text-sm flex items-center w-full overflow-hidden">
+                    <span className="truncate max-w-[60%]">
+                      {user?.user_metadata?.full_name ||
+                        user?.raw_user_meta_data?.full_name ||
+                        user?.email?.split("@")[0] ||
+                        "Unnamed User"}
+                    </span>
+                    <span className="ml-1 text-xs px-2 py-0.5 bg-maroon bg-opacity-10 text-white rounded whitespace-nowrap">
+                      {userRole === "superadmin" ? "Super Admin" : "Admin"}
+                    </span>
                   </p>
-                  <p className="text-xs text-gray-500">
-                    {user?.email || "unknown@example.com"}
+                  <p className="text-xs text-gray-500 truncate">
+                    {user?.email}
                   </p>
                 </div>
                 <ul className="text-sm">
@@ -132,7 +226,7 @@ const Navbar = () => {
                       Home
                     </Link>
                   </li>
-                  {userRole === "admin" && (
+                  {userRole === "admin" && adminOrgSlug && (
                     <li>
                       <Link
                         to={`/orgs/${adminOrgSlug}`}
