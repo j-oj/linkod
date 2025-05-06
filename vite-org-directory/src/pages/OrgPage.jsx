@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient";
-import Navbar from "../components/navbar";
+import Navbar from "../components/navbar.jsx";
 import Loading from "../components/loading.jsx";
 import { FaFacebook, FaInstagram, FaEnvelope } from "react-icons/fa";
 
