@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 import Navbar from "../components/navbar";
-import Loading from "../components/loading";
+import Loading from "../components/loading.jsx";
 import { FaFilter, FaChevronDown } from "react-icons/fa";
 
 const Homepage = () => {
