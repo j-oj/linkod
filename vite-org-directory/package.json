@@ -21,6 +21,7 @@
     "clsx": "^2.1.1",
     "ldrs": "^1.1.6",
     "lucide-react": "^0.487.0",
+    "path": "^0.12.7",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hot-toast": "^2.5.2",

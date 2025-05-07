@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { supabase } from "../supabaseClient";
+import { supabase } from "@/supabaseClient";
 
 const AcceptInvitation = () => {
   const [loading, setLoading] = useState(false);

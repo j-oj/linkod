@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { FaRegTrashAlt, FaUserTimes, FaSearch, FaEye } from "react-icons/fa";
-import Navbar from "../components/navbar.jsx";
-import { supabase } from "../supabaseClient";
+import Navbar from "@/components/navbar.jsx";
+import { supabase } from "@/supabaseClient";
 import { toast } from "react-hot-toast";
 import { DotPulse } from "ldrs/react";
 import "ldrs/react/DotPulse.css";

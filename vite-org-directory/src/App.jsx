@@ -1,19 +1,19 @@
 import React from "react";
 import { Route, Routes } from "react-router-dom";
 
-import Homepage from "./pages/Homepage";
-import Login from "./pages/Login";
-import GoogleCallback from "./pages/GoogleCallback";
-import SAdminDashboard from "./pages/SAdminDashboard";
-import AddOrg from "./pages/AddOrg";
-import EditOrg from "./pages/EditOrg";
-import OrgPage from "./pages/OrgPage";
-import CreateAdmin from "./pages/CreateAdmin";
-import AcceptInvitation from "./pages/AcceptInvitation";
+import Homepage from "@/pages/Homepage";
+import Login from "@/pages/Login";
+import GoogleCallback from "@/pages/GoogleCallback";
+import SAdminDashboard from "@/pages/SAdminDashboard";
+import AddOrg from "@/pages/AddOrg";
+import EditOrg from "@/pages/EditOrg";
+import OrgPage from "@/pages/OrgPage";
+import CreateAdmin from "@/pages/CreateAdmin";
+import AcceptInvitation from "@/pages/AcceptInvitation";
 
-import ProtectedRoutes from "./utils/ProtectedRoutes";
-import AppLayout from "./components/AppLayout";
-import { LoadingProvider } from "./context/LoadingContext";
+import ProtectedRoutes from "@/utils/ProtectedRoutes";
+import AppLayout from "@/components/AppLayout";
+import { LoadingProvider } from "@/context/LoadingContext";
 
 function App() {
   return (
