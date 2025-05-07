@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "../supabaseClient";
 import { useNavigate } from "react-router-dom";
-import Navbar from "../components/navbar";
+import Navbar from "../components/navbar.jsx";
 import Select from "react-select";
 import {
   FaFacebook,
