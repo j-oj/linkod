@@ -30,6 +30,7 @@ function App() {
           {/* Admin Protected Routes */}
           <Route element={<ProtectedRoutes allowedRole="admin" />}>
             <Route path="/edit-org/:slug" element={<EditOrg />} />
+            <Route path="/accept-invitation" element={<AcceptInvitation />} />
           </Route>
 
           {/* Superadmin Protected Routes */}
@@ -37,7 +38,6 @@ function App() {
             <Route path="/superadmin-dashboard" element={<SAdminDashboard />} />
             <Route path="/add-organization" element={<AddOrg />} />
             <Route path="/create-admin" element={<CreateAdmin />} />
-            <Route path="/accept-invitation" element={<AcceptInvitation />} />
           </Route>
         </Route>
       </Routes>
