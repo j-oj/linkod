@@ -5,7 +5,7 @@ import Navbar from "../components/Navbar";
 import Loading from "../components/Loading";
 import { FaFacebook, FaInstagram, FaEnvelope } from "react-icons/fa";
 
-const DEFAULT_LOGO_URL = "https://via.placeholder.com/100";
+const DEFAULT_LOGO_URL = "https://placehold.co/600x400";
 
 const OrgPage = () => {
   const { slug } = useParams();
@@ -23,7 +23,8 @@ const OrgPage = () => {
         // Fetch organization with category name
         const { data: orgData, error: orgError } = await supabase
           .from("organization")
-          .select(`
+          .select(
+            `
             org_id,
             org_name,
             org_logo,
@@ -35,47 +36,48 @@ const OrgPage = () => {
             application_dates,
             slug,
             category (category_name)
-          `)
+          `
+          )
           .eq("slug", slug)
           .single();
-  
+
         if (orgError || !orgData) {
           throw new Error("Failed to fetch organization data.");
         }
-  
+
         setOrg(orgData);
-  
+
         // Fetch tags (from org_tag table, referencing tag table)
         const { data: tagData, error: tagError } = await supabase
           .from("org_tag")
           .select("tag_id, tag:tag_id(tag_name)") // Join with tag table
           .eq("org_id", orgData.org_id);
-  
+
         if (tagError) {
           console.error("Failed to fetch tags:", tagError);
         } else {
           const tagNames = tagData.map((t) => t.tag?.tag_name).filter(Boolean);
           setTags(tagNames);
         }
-  
+
         // Fetch current user
         const { data: userData, error: userError } =
           await supabase.auth.getUser();
         if (!userError && userData?.user) {
           setUser(userData.user);
-  
+
           // Fetch user role
           const { data: roleData, error: roleError } = await supabase
             .from("user_roles")
             .select("role")
             .eq("user_id", userData.user.id)
             .single();
-  
+
           if (roleError) {
             console.error("Error fetching user role:", roleError);
           } else {
             console.log("User Role:", roleData?.role);
-  
+
             if (roleData?.role === "superadmin") {
               // Superadmin can edit all organizations
               setIsAdmin(true);
@@ -86,7 +88,7 @@ const OrgPage = () => {
                 .select("org_id")
                 .eq("admin_id", userData.user.id)
                 .single();
-  
+
               if (adminError) {
                 console.error("Error fetching admin data:", adminError);
               } else if (adminData?.org_id === orgData.org_id) {
@@ -102,7 +104,7 @@ const OrgPage = () => {
         setLoading(false);
       }
     };
-  
+
     fetchData();
   }, [slug]);
 

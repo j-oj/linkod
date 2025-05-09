@@ -36,7 +36,8 @@ const EditOrg = () => {
         // Fetch organization data
         const { data: orgData, error: orgError } = await supabase
           .from("organization")
-          .select(`
+          .select(
+            `
             org_id,
             org_name,
             org_logo,
@@ -48,7 +49,8 @@ const EditOrg = () => {
             application_dates,
             slug,
             category
-          `)
+          `
+          )
           .eq("slug", slug)
           .single();
 
@@ -193,7 +195,7 @@ const EditOrg = () => {
           {/* Logo Display */}
           <div className="flex items-center gap-4">
             <img
-              src={org.org_logo || "https://via.placeholder.com/150"}
+              src={org.org_logo || "https://placehold.co/600x400"}
               alt="Organization Logo"
               className="w-32 h-32 object-cover rounded-full border"
             />
