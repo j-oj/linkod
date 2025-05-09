@@ -33,8 +33,8 @@ const CreateAdmin = () => {
     }
 
     const { error } = await supabase.from("invite_admin").insert({
-      email: email.trim().toLowerCase(),
-      name: name.trim(),
+      admin_email: email.trim().toLowerCase(),
+      admin_name: name.trim(),
       org_id: selectedOrg,
     });
 
