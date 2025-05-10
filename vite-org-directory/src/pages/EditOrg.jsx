@@ -36,7 +36,8 @@ const EditOrg = () => {
         // Fetch organization data
         const { data: orgData, error: orgError } = await supabase
           .from("organization")
-          .select(`
+          .select(
+            `
             org_id,
             org_name,
             org_logo,
@@ -48,7 +49,8 @@ const EditOrg = () => {
             application_dates,
             slug,
             category
-          `)
+          `
+          )
           .eq("slug", slug)
           .single();
 
@@ -192,8 +194,13 @@ const EditOrg = () => {
         >
           {/* Logo Display */}
           <div className="flex items-center gap-4">
+            {/* Show the selected file preview if a new file is selected */}
             <img
-              src={org.org_logo || "https://via.placeholder.com/150"}
+              src={
+                logoFile
+                  ? URL.createObjectURL(logoFile) // Preview the selected file
+                  : org.org_logo || "https://placehold.co/600x400"
+              }
               alt="Organization Logo"
               className="w-32 h-32 object-cover rounded-full border"
             />
@@ -207,9 +214,31 @@ const EditOrg = () => {
               id="logo-upload"
               type="file"
               accept="image/*"
-              onChange={(e) => setLogoFile(e.target.files[0])}
+              onChange={(e) => {
+                const file = e.target.files[0];
+                if (file) {
+                  if (!file.type.startsWith("image/")) {
+                    alert("Please select a valid image file.");
+                    return;
+                  }
+                  if (file.size > 5 * 1024 * 1024) { // 5MB limit
+                    alert("File size must be less than 5MB.");
+                    return;
+                  }
+                  setLogoFile(file); // Set the selected file
+                }
+              }}
               className="hidden"
             />
+            {/* Add a button to remove the selected file */}
+            {logoFile && (
+              <button
+                onClick={() => setLogoFile(null)} // Clear the selected file
+                className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600"
+              >
+                Remove
+              </button>
+            )}
           </div>
 
           {/* Basic Info */}
