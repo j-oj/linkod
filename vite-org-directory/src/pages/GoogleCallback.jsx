@@ -18,7 +18,7 @@ const GoogleCallback = () => {
         // Fetch the authenticated user
         const {
           data: { user },
-          error: userError,s
+          error: userError,
         } = await supabase.auth.getUser();
 
         if (userError || !user) {
