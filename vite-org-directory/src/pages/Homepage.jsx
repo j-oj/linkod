@@ -133,7 +133,25 @@ const Homepage = () => {
 
   return (
     <>
-      <Navbar userRole={userRole} />
+      
+      <Navbar userRole={userRole} onSearch={handleSearch}/>
+
+      {/* Hero Section */}
+      <div style={{height:"100vh"}}>
+        <div
+          style={{
+            backgroundImage: "linear-gradient(to bottom, var(--color-maroon), transparent, transparent) , url('/upmin-hero-image.jpg')",
+            backgroundSize: "cover",
+            backgroundRepeat: "no-repeat",
+            height: "50%", 
+            display: "flex",
+            flexDirection: "column",
+
+          }}
+        >
+        </div>
+      <div/>
+
       <div className="p-4 max-w-6xl mx-auto">
         {/* Search Bar */}
         <div className="flex flex-col sm:flex-row gap-4 mb-4">
@@ -142,7 +160,7 @@ const Homepage = () => {
               type="text"
               placeholder="Search organizations..."
               value={searchTerm}
-              onChange={handleSearch}
+              onChange={(e) => handleSearch(e)}
               className="w-full border border-gray-300 rounded-full py-2 px-4 pr-10 focus:outline-none focus:ring-2 focus:ring-maroon"
             />
             <FaFilter className="absolute right-4 top-2.5 text-gray-400" />
@@ -225,13 +243,17 @@ const Homepage = () => {
                 to={`/orgs/${org.slug}`}
                 className="bg-white rounded-xl shadow hover:shadow-lg transition-all duration-200 p-4 flex flex-col items-center text-center dark:bg-gray-800 dark:text-white dark:hover:shadow-lg"
               >
-                <img
+                <div className="w-24 h-24 mb-3"> 
+                  <img
                   src={org.org_logo || "https://via.placeholder.com/150"}
                   alt={org.org_name}
-                  className="w-24 h-24 object-contain mb-3"
+                  className="object-fill w-full h-full rounded-full"
                 />
-                <h2 className="font-semibold text-sm">{org.org_name}</h2>
-              </Link>
+                </div>
+                <div className ="w-full">
+                  <h2 className="overflow-hidden text-ellipsis font-semibold text-sm line-clamp-2">{org.org_name}</h2>
+                </div>
+                </Link>
             ))}
           </div>
         ) : (
@@ -240,6 +262,7 @@ const Homepage = () => {
             {orgs.length > 0 ? "Try adjusting your filters." : ""}
           </div>
         )}
+      </div>
       </div>
     </>
   );

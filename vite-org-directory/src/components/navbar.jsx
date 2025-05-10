@@ -3,7 +3,7 @@ import { FaMoon } from "react-icons/fa";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 
-const Navbar = () => {
+const Navbar = (props) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [user, setUser] = useState(null);
   const [userRole, setUserRole] = useState("loading");
@@ -142,6 +142,7 @@ const Navbar = () => {
       </div>
 
       <div className="flex items-center gap-4 relative" ref={dropdownRef}>
+
         {(userRole === "admin" || userRole === "superadmin") && (
           <div className="hidden md:block text-sm mr-3">
             <span>
@@ -160,7 +161,7 @@ const Navbar = () => {
         )}
 
         <button
-          className="text-xl"
+          className="px-4 py-2 text-xl bg-yellow-500 dark:bg-maroon-500 border-yellow-200 rounded-md"
           onClick={() => document.body.classList.toggle("dark")}
         >
           <FaMoon />
@@ -177,7 +178,7 @@ const Navbar = () => {
 
         {(userRole === "admin" || userRole === "superadmin") && (
           <div className="relative">
-            <button
+            <button bg-yellow
               onClick={() => setDropdownOpen(!dropdownOpen)}
               className="w-10 h-10 rounded-full bg-white overflow-hidden flex justify-center items-center transition-transform transform hover:scale-110"
             >
