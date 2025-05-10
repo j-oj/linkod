@@ -14,10 +14,11 @@ const GoogleCallback = () => {
   useEffect(() => {
     const checkSessionAndRole = async () => {
       try {
+        await supabase.auth.getSessionFromUrl();
         // Fetch the authenticated user
         const {
           data: { user },
-          error: userError,
+          error: userError,s
         } = await supabase.auth.getUser();
 
         if (userError || !user) {

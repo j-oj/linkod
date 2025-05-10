@@ -32,20 +32,30 @@ const CreateAdmin = () => {
       return;
     }
 
-    const { error } = await supabase.from("invite_admin").insert({
-      admin_email: email.trim().toLowerCase(),
-      admin_name: name.trim(),
-      org_id: selectedOrg,
-    });
+    try {
+      // Invite the user by email
+      const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(email.trim().toLowerCase(), {
+        data: {
+          full_name: name.trim(),
+        },
+      });
 
-    if (error) {
-      console.error("Failed to create admin invite:", error);
-      alert("Failed to create admin invite");
-    } else {
-      alert("Admin invite created!");
+      
+      if (inviteError) {
+        console.error("Failed to send invite:", inviteError);
+        alert("Failed to send invite. Please try again.");
+        return;
+      }
+
+      alert("Invite sent successfully! The user will receive an email to sign up.");
+
+      // Clear the form
       setEmail("");
       setName("");
       setSelectedOrg("");
+    } catch (error) {
+      console.error("Error inviting user:", error);
+      alert("An error occurred. Please try again.");
     }
   };
 
