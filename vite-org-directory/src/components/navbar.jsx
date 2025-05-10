@@ -160,11 +160,13 @@ const Navbar = (props) => {
           </div>
         )}
 
+        {/* 10/05 changed colors of night mode button*/}
+        {/* Night Mode Button */}
         <button
           className="px-4 py-2 text-xl bg-yellow-500 dark:bg-maroon-500 border-yellow-200 rounded-md"
           onClick={() => document.body.classList.toggle("dark")}
         >
-          <FaMoon />
+          <FaMoon style={{color: "var(--color-maroon)"}}/>
         </button>
 
         {userRole === "guest" && !isLoginPage && (
