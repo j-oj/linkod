@@ -151,13 +151,14 @@ const Homepage = () => {
           className="relative"
         >
           <div className="absolute bottom-0 left-0 text-white mt-20 px-5 py-5 text-shadow-lg/">
-          <h1 className="text-4xl font-bold"> Find your UPMin community here! </h1>
-          <h2 className="text-2xl italic text-shadow-md"> An online directory for student-led UP Mindanao organizations. </h2>
+            <h1 className="text-4xl font-bold"> Find your UPMin community here! </h1>
+            <h2 className="text-2xl italic text-shadow-md"> An online directory for student-led UP Mindanao organizations. </h2>
           </div>
 
         </div>
       
-      <div/>
+      </div>
+
       <div className="p-4 max-w-6xl mx-auto">
         {/* Search Bar */}
         <div className="flex flex-col sm:flex-row gap-4 mb-4">
@@ -166,7 +167,7 @@ const Homepage = () => {
               type="text"
               placeholder="Search organizations..."
               value={searchTerm}
-              onChange={(e) => handleSearch(e)}
+              onChange={handleSearch}
               className="w-full border border-gray-300 rounded-full py-2 px-4 pr-10 focus:outline-none focus:ring-2 focus:ring-maroon"
             />
             <FaFilter className="absolute right-4 top-2.5 text-gray-400" />
@@ -233,7 +234,6 @@ const Homepage = () => {
             ))}
             <button
               onClick={clearFilter}
-              className="text-sm text-gray-500 underline ml-2"
             >
               Clear all
             </button>
@@ -243,26 +243,44 @@ const Homepage = () => {
         {/* Org Cards */}
         {filteredOrgs.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-            {filteredOrgs.map((org) => (
-              <Link
-                key={org.org_id}
-                to={`/orgs/${org.slug}`}
-                className="bg-white rounded-xl shadow hover:shadow-lg transition-all duration-200 p-4 flex flex-col items-center text-center dark:bg-gray-800 dark:text-white dark:hover:shadow-lg"
-              >
-                {/* 10/04 edited org logos into circular framed ones */}
-                <div className="w-24 h-24 mb-3"> 
-                  <img
-                  src={org.org_logo || "https://via.placeholder.com/150"}
-                  alt={org.org_name}
-                  className="object-fill w-full h-full rounded-full"
-                />
-                </div>
-                {/* 10/04 text overflow stops at two lines and becomes ellipses */}
-                <div className ="w-full">
-                  <h2 className="overflow-hidden text-ellipsis font-semibold text-sm line-clamp-2">{org.org_name}</h2>
-                </div>
+            
+            {filteredOrgs.map((org) => {  
+              const isAdmin = isAdminOrg(org.slug);
+              return (
+                <Link
+                  key={org.id || org.org_id}
+                  to={`/orgs/${org.slug}`}
+                  className={`relative bg-white rounded-xl shadow hover:shadow-lg transition-all duration-200 p-4 flex flex-col items-center text-center dark:bg-gray-800 dark:text-white dark:hover:shadow-lg ${
+                    isAdmin ? "ring-4 ring-yellow-400" : ""
+                  }`}
+                >
+                  {isAdmin && (
+                    <div
+                      className="absolute top-2 right-2 bg-yellow-400 text-maroon rounded-full p-1"
+                      title="You are an admin of this organization"
+                    >
+                      <FaCrown size={14} />
+                    </div>
+                  )}
+                  
+                  {/* 10/04 edited org logos into circular framed ones */}
+                  <div className="w-24 h-24 mb-3"> 
+                    <img
+                    src={org.org_logo || "https://via.placeholder.com/150"}
+                    alt={org.org_name}
+                    className="object-fill w-full h-full rounded-full"
+                    />
+                  </div>
+                  
+                  {/* 10/04 text overflow stops at two lines and becomes ellipses */}
+                  <div className ="w-full">
+                    <h2 className="overflow-hidden text-ellipsis font-semibold text-sm line-clamp-2">{org.org_name}</h2>
+                  </div>
+                  
                 </Link>
-            ))}
+              );
+            })}
+            
           </div>
         ) : (
           <div className="text-center text-gray-500 mt-10">
@@ -270,7 +288,6 @@ const Homepage = () => {
             {orgs.length > 0 ? "Try adjusting your filters." : ""}
           </div>
         )}
-      </div>
       </div>
     </>
   );
