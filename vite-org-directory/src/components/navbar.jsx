@@ -146,7 +146,7 @@ const Navbar = (props) => {
         {(userRole === "admin" || userRole === "superadmin") && (
           <div className="hidden md:block text-sm mr-3">
             <span>
-              Maayong adlaw,{" "}
+              Hello,{" "}
               {
                 (
                   user?.user_metadata?.full_name ||

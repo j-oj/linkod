@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 import Navbar from "../components/navbar";
 import Loading from "../components/Loading";
-import { FaFilter, FaChevronDown } from "react-icons/fa";
+import { FaFilter, FaChevronDown, FaCrown } from "react-icons/fa";
 
 const Homepage = () => {
   const [orgs, setOrgs] = useState([]);
@@ -12,29 +12,98 @@ const Homepage = () => {
   const [selectedTags, setSelectedTags] = useState([]);
   const [allTags, setAllTags] = useState([]);
   const [userRole, setUserRole] = useState("guest");
+  const [adminOrgSlug, setAdminOrgSlug] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [user, setUser] = useState(null);
 
   useEffect(() => {
     const checkAuth = async () => {
       try {
+        console.log("Checking authentication...");
         const { data } = await supabase.auth.getSession();
         const isLoggedIn = !!data.session;
+        console.log("Is user logged in:", isLoggedIn);
 
         if (isLoggedIn) {
           const { user } = data.session;
-          const { data: userData } = await supabase
+          setUser(user);
+          console.log("Logged in user:", user.id, user.email);
+
+          const { data: userData, error: userError } = await supabase
             .from("user_roles")
             .select("role")
             .eq("user_id", user.id)
             .single();
 
+          if (userError) console.error("Error fetching user role:", userError);
+          console.log("User role data:", userData);
+
           const role = userData?.role || "user";
           localStorage.setItem("userRole", role);
           setUserRole(role);
+          console.log("Set user role to:", role);
+
+          // If user is an admin, find their organization
+          if (role === "admin") {
+            console.log("User is admin, finding their organization...");
+
+            // Try to find by admin_id first
+            console.log("Looking up admin by ID:", user.id);
+            const { data: byIdData, error: byIdError } = await supabase
+              .from("admin")
+              .select("org_id")
+              .eq("admin_id", user.id)
+              .maybeSingle();
+
+            console.log("Admin lookup by ID result:", byIdData, byIdError);
+
+            let adminData = null;
+            if (!byIdData) {
+              console.log("Admin not found by ID, trying email:", user.email);
+              const { data: byEmailData, error: byEmailError } = await supabase
+                .from("admin")
+                .select("org_id")
+                .eq("admin_email", user.email)
+                .maybeSingle();
+
+              console.log(
+                "Admin lookup by email result:",
+                byEmailData,
+                byEmailError
+              );
+              adminData = byEmailData;
+            } else {
+              adminData = byIdData;
+            }
+
+            console.log("Final admin data:", adminData);
+
+            // If admin data found, get the organization slug
+            if (adminData && adminData.org_id) {
+              console.log("Found admin org_id:", adminData.org_id);
+              const { data: orgData, error: orgError } = await supabase
+                .from("organization")
+                .select("slug, org_name")
+                .eq("org_id", adminData.org_id)
+                .maybeSingle();
+
+              console.log("Organization data:", orgData, orgError);
+
+              if (orgData?.slug) {
+                console.log("Setting admin org slug to:", orgData.slug);
+                setAdminOrgSlug(orgData.slug);
+              } else {
+                console.log("No organization slug found");
+              }
+            } else {
+              console.log("No valid admin data found");
+            }
+          }
         } else {
           localStorage.removeItem("userRole");
           setUserRole("guest");
+          console.log("User is not logged in, set as guest");
         }
       } catch (error) {
         console.error("Auth check error:", error);
@@ -49,6 +118,7 @@ const Homepage = () => {
     const fetchOrgs = async () => {
       setLoading(true);
       try {
+        console.log("Fetching organizations...");
         const { data, error } = await supabase
           .from("organization")
           .select("*, org_tag(tag:tag_id (tag_name))")
@@ -56,6 +126,7 @@ const Homepage = () => {
 
         if (error) throw error;
 
+        console.log("Organizations fetched:", data?.length || 0);
         setOrgs(data || []);
         setFilteredOrgs(data || []);
         extractTags(data || []);
@@ -70,6 +141,13 @@ const Homepage = () => {
 
     fetchOrgs();
   }, []);
+
+  // Debug useEffect to log state changes
+  useEffect(() => {
+    console.log("Current adminOrgSlug:", adminOrgSlug);
+    console.log("Current userRole:", userRole);
+    console.log("Organization count:", orgs.length);
+  }, [adminOrgSlug, userRole, orgs]);
 
   const extractTags = (orgsList) => {
     const tagSet = new Set();
@@ -120,6 +198,13 @@ const Homepage = () => {
     setFilteredOrgs(filtered);
   };
 
+  // Check if the org is the admin's org
+  const isAdminOrg = (orgSlug) => {
+    const isAdmin = userRole === "admin" && adminOrgSlug === orgSlug;
+
+    return isAdmin;
+  };
+
   if (loading) {
     return (
       <>
@@ -133,7 +218,7 @@ const Homepage = () => {
 
   return (
     <>
-      
+    
       <Navbar userRole={userRole} onSearch={handleSearch}/>
 
       {/* Hero Section */}
@@ -150,7 +235,8 @@ const Homepage = () => {
           }}
         >
         </div>
-      <div/>
+      
+      <Navbar />
 
       <div className="p-4 max-w-6xl mx-auto">
         {/* Search Bar */}
@@ -237,24 +323,35 @@ const Homepage = () => {
         {/* Org Cards */}
         {filteredOrgs.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-            {filteredOrgs.map((org) => (
-              <Link
-                key={org.org_id}
-                to={`/orgs/${org.slug}`}
-                className="bg-white rounded-xl shadow hover:shadow-lg transition-all duration-200 p-4 flex flex-col items-center text-center dark:bg-gray-800 dark:text-white dark:hover:shadow-lg"
-              >
-                <div className="w-24 h-24 mb-3"> 
+
+            {filteredOrgs.map((org) => {
+              const isAdmin = isAdminOrg(org.slug);
+              return (
+                <Link
+                  key={org.id || org.org_id}
+                  to={`/orgs/${org.slug}`}
+                  className={`relative bg-white rounded-xl shadow hover:shadow-lg transition-all duration-200 p-4 flex flex-col items-center text-center dark:bg-gray-800 dark:text-white dark:hover:shadow-lg ${
+                    isAdmin ? "ring-4 ring-yellow-400" : ""
+                  }`}
+                >
+                  {isAdmin && (
+                    <div
+                      className="absolute top-2 right-2 bg-yellow-400 text-maroon rounded-full p-1"
+                      title="You are an admin of this organization"
+                    >
+                      <FaCrown size={14} />
+                    </div>
+                  )}
                   <img
-                  src={org.org_logo || "https://via.placeholder.com/150"}
-                  alt={org.org_name}
-                  className="object-fill w-full h-full rounded-full"
-                />
-                </div>
-                <div className ="w-full">
-                  <h2 className="overflow-hidden text-ellipsis font-semibold text-sm line-clamp-2">{org.org_name}</h2>
-                </div>
+                    src={org.org_logo || "https://placehold.co/600x400"}
+                    alt={org.org_name}
+                    className="w-24 h-24 object-contain mb-3"
+                  />
+                  <h2 className="font-semibold text-sm">{org.org_name}</h2>
                 </Link>
-            ))}
+              );
+            })}
+
           </div>
         ) : (
           <div className="text-center text-gray-500 mt-10">
