@@ -218,26 +218,7 @@ const Homepage = () => {
 
   return (
     <>
-    
-      <Navbar userRole={userRole} onSearch={handleSearch}/>
-
-      {/* Hero Section */}
-      <div style={{height:"100vh"}}>
-        <div
-          style={{
-            backgroundImage: "linear-gradient(to bottom, var(--color-maroon), transparent, transparent) , url('/upmin-hero-image.jpg')",
-            backgroundSize: "cover",
-            backgroundRepeat: "no-repeat",
-            height: "50%", 
-            display: "flex",
-            flexDirection: "column",
-
-          }}
-        >
-        </div>
-      
       <Navbar />
-
       <div className="p-4 max-w-6xl mx-auto">
         {/* Search Bar */}
         <div className="flex flex-col sm:flex-row gap-4 mb-4">
@@ -246,7 +227,7 @@ const Homepage = () => {
               type="text"
               placeholder="Search organizations..."
               value={searchTerm}
-              onChange={(e) => handleSearch(e)}
+              onChange={handleSearch}
               className="w-full border border-gray-300 rounded-full py-2 px-4 pr-10 focus:outline-none focus:ring-2 focus:ring-maroon"
             />
             <FaFilter className="absolute right-4 top-2.5 text-gray-400" />
@@ -323,7 +304,6 @@ const Homepage = () => {
         {/* Org Cards */}
         {filteredOrgs.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-
             {filteredOrgs.map((org) => {
               const isAdmin = isAdminOrg(org.slug);
               return (
@@ -351,7 +331,6 @@ const Homepage = () => {
                 </Link>
               );
             })}
-
           </div>
         ) : (
           <div className="text-center text-gray-500 mt-10">
@@ -359,7 +338,6 @@ const Homepage = () => {
             {orgs.length > 0 ? "Try adjusting your filters." : ""}
           </div>
         )}
-      </div>
       </div>
     </>
   );
