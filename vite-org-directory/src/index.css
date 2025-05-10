@@ -116,7 +116,6 @@
 /* Custom colors for Website */
 @theme {
   --color-maroon: #7b1113;
-  --color-yellow: #ffad14;
 }
 
 @layer base {
