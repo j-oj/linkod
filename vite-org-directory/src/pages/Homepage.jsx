@@ -355,7 +355,7 @@ const Homepage = () => {
                             className="w-16 h-16 object-cover"
                           />
                         </div>
-                        <h2 className="font-medium text-base text-center text-gray-800 dark:text-white">
+                        <h2 className="font-medium text-base text-center text-gray-800 dark:text-white truncate max-w-full">
                           {org.org_name}
                         </h2>
                         <span className="mt-2 inline-block px-3 py-1 bg-gray-100 dark:bg-gray-700 text-xs rounded-full text-gray-600 dark:text-gray-300">

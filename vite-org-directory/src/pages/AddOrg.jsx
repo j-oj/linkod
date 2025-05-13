@@ -1,18 +1,21 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/supabaseClient";
 import { useNavigate } from "react-router-dom";
-import Navbar from "@/components/navbar";
-import Loading from "@/components/loading";
+import Navbar from "@/components/Navbar";
+import Loading from "@/components/Loading";
 import Select from "react-select";
 import {
   FaFacebook,
-  FaTwitter,
+  FaXTwitter,
   FaInstagram,
   FaLinkedin,
   FaGlobe,
   FaImage,
   FaTrash,
 } from "react-icons/fa6";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
+import { format } from "date-fns";
 
 const AddOrg = () => {
   const [loading, setLoading] = useState(false);
@@ -95,20 +98,36 @@ const AddOrg = () => {
 
   // Generate previews for featured photos
   useEffect(() => {
-    const previews = [];
-    featuredPhotos.forEach((file) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        previews.push({
-          file: file,
-          preview: reader.result,
+    const generatePreviews = async () => {
+      const previews = [];
+
+      for (let i = 0; i < featuredPhotos.length; i++) {
+        const file = featuredPhotos[i];
+        const reader = new FileReader();
+
+        // Create a promise to wait for each FileReader to complete
+        const previewPromise = new Promise((resolve) => {
+          reader.onloadend = () => {
+            resolve({
+              file: file,
+              preview: reader.result,
+            });
+          };
+          reader.readAsDataURL(file);
         });
-        if (previews.length === featuredPhotos.length) {
-          setFeaturedPhotoPreviews(previews);
-        }
-      };
-      reader.readAsDataURL(file);
-    });
+
+        const preview = await previewPromise;
+        previews.push(preview);
+      }
+
+      setFeaturedPhotoPreviews(previews);
+    };
+
+    if (featuredPhotos.length > 0) {
+      generatePreviews();
+    } else {
+      setFeaturedPhotoPreviews([]);
+    }
   }, [featuredPhotos]);
 
   const handleLogoChange = (e) => {
@@ -120,13 +139,18 @@ const AddOrg = () => {
   const handleFeaturedPhotoChange = (e) => {
     if (e.target.files) {
       const selectedFiles = Array.from(e.target.files);
-      if (selectedFiles.length + featuredPhotos.length > MAX_FEATURED_PHOTOS) {
+      const availableSlots = MAX_FEATURED_PHOTOS - featuredPhotos.length;
+
+      if (selectedFiles.length > availableSlots) {
+        // If user selected more files than available slots, take only what fits
+        const filesToAdd = selectedFiles.slice(0, availableSlots);
+        setFeaturedPhotos((prevPhotos) => [...prevPhotos, ...filesToAdd]);
         alert(
-          `You can only upload up to ${MAX_FEATURED_PHOTOS} featured photos.`
+          `Only added ${availableSlots} photos as that's the maximum allowed. (${MAX_FEATURED_PHOTOS} total)`
         );
-        return;
+      } else {
+        setFeaturedPhotos((prevPhotos) => [...prevPhotos, ...selectedFiles]);
       }
-      setFeaturedPhotos((prevPhotos) => [...prevPhotos, ...selectedFiles]);
     }
   };
 
@@ -155,6 +179,14 @@ const AddOrg = () => {
         !selectedCategory
       ) {
         throw new Error("Please fill in all required fields");
+      }
+
+      // Combine start and end date into a single string
+      let formattedApplicationDates = "";
+      if (org.startDate && org.endDate) {
+        const startDateStr = format(org.startDate, "MMMM dd, yyyy");
+        const endDateStr = format(org.endDate, "MMMM dd, yyyy");
+        formattedApplicationDates = `${startDateStr} to ${endDateStr}`;
       }
 
       // Generate slug from acronym
@@ -218,10 +250,6 @@ const AddOrg = () => {
       }
 
       // Insert organization
-      // Fix for the organization insertion
-      // Look for this section in the handleSubmit function:
-
-      // Insert organization
       const { data, error } = await supabase
         .from("organization")
         .insert([
@@ -233,7 +261,7 @@ const AddOrg = () => {
             about: org.about,
             socmed_links: socialLinks,
             application_form: org.application_form,
-            application_dates: org.application_dates,
+            application_dates: formattedApplicationDates,
             slug: slug,
             category: selectedCategory,
           },
@@ -580,14 +608,37 @@ const AddOrg = () => {
                     <label className="block font-medium text-gray-700 mb-2">
                       Application Dates
                     </label>
-                    <input
-                      type="text"
-                      name="application_dates"
-                      value={org.application_dates || ""}
-                      onChange={handleChange}
-                      className="w-full text-gray-700 border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-red-300 focus:border-red-500 transition"
-                      placeholder="e.g., Jan 15 - Feb 28, 2025"
-                    />
+                    <div className="flex gap-2">
+                      <DatePicker
+                        calendarClassName="my-datepicker"
+                        selected={org.startDate}
+                        onChange={(date) =>
+                          handleChange({
+                            target: { name: "startDate", value: date },
+                          })
+                        }
+                        selectsStart
+                        startDate={org.startDate}
+                        endDate={org.endDate}
+                        placeholderText="Start date"
+                        className="w-full text-gray-700 border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-red-300 focus:border-red-500 transition"
+                      />
+                      <DatePicker
+                        calendarClassName="my-datepicker"
+                        selected={org.endDate}
+                        onChange={(date) =>
+                          handleChange({
+                            target: { name: "endDate", value: date },
+                          })
+                        }
+                        selectsEnd
+                        startDate={org.startDate}
+                        endDate={org.endDate}
+                        minDate={org.startDate}
+                        placeholderText="End date"
+                        className="w-full text-gray-700 border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-red-300 focus:border-red-500 transition"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -622,35 +673,19 @@ const AddOrg = () => {
                     {featuredPhotos.length < MAX_FEATURED_PHOTOS && (
                       <label className="border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center h-40 cursor-pointer hover:border-red-300 transition">
                         <FaImage className="text-gray-400 text-2xl mb-2" />
-                        <span className="text-sm text-gray-500">Add Photo</span>
+                        <span className="text-sm text-gray-500">
+                          Add Photos
+                        </span>
                         <input
                           type="file"
                           accept="image/*"
                           onChange={handleFeaturedPhotoChange}
                           className="hidden"
+                          multiple
                         />
                       </label>
                     )}
                   </div>
-
-                  {featuredPhotos.length < MAX_FEATURED_PHOTOS && (
-                    <div className="mb-6">
-                      <label className="block font-medium text-gray-700 mb-2">
-                        Upload Featured Photos
-                      </label>
-                      <div className="flex items-center">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleFeaturedPhotoChange}
-                          className="w-full text-gray-700 border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-red-300 focus:border-red-500 transition"
-                        />
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Each organization can have up to 3 featured photos.
-                      </p>
-                    </div>
-                  )}
                 </div>
 
                 {/* Social Media Section */}
@@ -666,9 +701,9 @@ const AddOrg = () => {
                         placeholder: "Facebook URL",
                       },
                       {
-                        icon: <FaTwitter className="text-sky-500" />,
+                        icon: <FaXTwitter className="text-grey-700" />,
                         name: "twitter",
-                        placeholder: "Twitter URL",
+                        placeholder: "X URL",
                       },
                       {
                         icon: <FaInstagram className="text-pink-500" />,
