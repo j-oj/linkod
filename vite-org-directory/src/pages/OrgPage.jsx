@@ -3,16 +3,16 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/supabaseClient";
 import Navbar from "@/components/navbar.jsx";
 import Loading from "@/components/loading.jsx";
+import ActionButton from "@/components/ui/actionbutton";
 import {
   FaFacebook,
-  FaTwitter,
+  FaXTwitter,
   FaInstagram,
   FaLinkedin,
   FaGlobe,
   FaChevronLeft,
   FaChevronRight,
-} from "react-icons/fa";
-
+} from "react-icons/fa6";
 
 const DEFAULT_LOGO_URL = "https://placehold.co/600x400";
 
@@ -27,11 +27,25 @@ const OrgPage = () => {
   const navigate = useNavigate();
   const [featuredPhotos, setFeaturedPhotos] = useState([]);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(null);
+  const [atTop, setAtTop] = useState(true);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setAtTop(window.scrollY <= 10);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    handleScroll(); // run once on mount
+
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch organization with category name
+        setLoading(true);
+
+        // Fetch organization
         const { data: orgData, error: orgError } = await supabase
           .from("organization")
           .select(
@@ -52,71 +66,65 @@ const OrgPage = () => {
           .eq("slug", slug)
           .single();
 
-        if (orgError || !orgData) {
+        if (orgError || !orgData)
           throw new Error("Failed to fetch organization data.");
+
+        // ✅ Ensure socmed_links is parsed properly (in case it's returned as a string)
+        if (orgData.socmed_links && typeof orgData.socmed_links === "string") {
+          try {
+            orgData.socmed_links = JSON.parse(orgData.socmed_links);
+          } catch {
+            orgData.socmed_links = {};
+          }
         }
 
         setOrg(orgData);
+        console.log("SOCMED LINKS:", orgData.socmed_links);
 
-        // Fetch featured photos from featured_photos table
-        const { data: photoData, error: photoError } = await supabase
+        // Fetch featured photos
+        const { data: photoData } = await supabase
           .from("featured_photos")
           .select("photo_url")
           .eq("org_id", orgData.org_id);
 
-        if (!photoError && photoData) {
+        if (photoData) {
           setFeaturedPhotos(photoData.map((p) => p.photo_url));
-        } else {
-          console.error("Failed to fetch featured photos:", photoError);
         }
 
-        // Fetch tags (from org_tag table, referencing tag table)
-        const { data: tagData, error: tagError } = await supabase
+        // Fetch tags
+        const { data: tagData } = await supabase
           .from("org_tag")
           .select("tag_id, tag:tag_id(tag_name)")
           .eq("org_id", orgData.org_id);
 
-        if (tagError) {
-          console.error("Failed to fetch tags:", tagError);
-        } else {
+        if (tagData) {
           const tagNames = tagData.map((t) => t.tag?.tag_name).filter(Boolean);
           setTags(tagNames);
         }
 
         // Fetch current user
-        const { data: userData, error: userError } =
-          await supabase.auth.getUser();
-        if (!userError && userData?.user) {
+        const { data: userData } = await supabase.auth.getUser();
+
+        if (userData?.user) {
           setUser(userData.user);
 
-          // Fetch user role
-          const { data: roleData, error: roleError } = await supabase
+          const { data: roleData } = await supabase
             .from("user_roles")
             .select("role")
             .eq("user_id", userData.user.id)
             .single();
 
-          if (roleError) {
-            console.error("Error fetching user role:", roleError);
-          } else {
-            console.log("User Role:", roleData?.role);
+          if (roleData?.role === "superadmin") {
+            setIsAdmin(true);
+          } else if (roleData?.role === "admin") {
+            const { data: adminData } = await supabase
+              .from("admin")
+              .select("org_id")
+              .eq("admin_id", userData.user.id)
+              .single();
 
-            if (roleData?.role === "superadmin") {
-              // Superadmin can edit all organizations
+            if (adminData?.org_id === orgData.org_id) {
               setIsAdmin(true);
-            } else if (roleData?.role === "admin") {
-              // Admin can only edit their own organization
-              const { data: adminData, error: adminError } = await supabase
-                .from("admin")
-                .select("org_id")
-                .eq("admin_id", userData.user.id)
-                .single();
-
-              if (adminError) {
-                console.error("Error fetching admin data:", adminError);
-              } else if (adminData?.org_id === orgData.org_id) {
-                setIsAdmin(true);
-              }
             }
           }
         }
@@ -145,33 +153,9 @@ const OrgPage = () => {
 
   const handleEdit = () => navigate(`/edit-org/${slug}`);
 
-  {
-    selectedPhotoIndex && (
-      <div
-        className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"
-        onClick={() => setSelectedPhotoIndex(index)}
-      >
-        <div className="relative max-w-3xl max-h-[90vh]">
-          <img
-            src={selectedPhotoIndex}
-            alt="Enlarged"
-            className="rounded-lg object-contain max-h-[90vh] w-full"
-          />
-          <button
-            onClick={() => setSelectedPhotoIndex(index)}
-            className="absolute top-2 right-2 text-white bg-black bg-opacity-50 rounded-full p-2 hover:bg-opacity-80 transition"
-          >
-            ✕
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (selectedPhotoIndex === null) return;
-
       if (e.key === "ArrowRight") handleNext();
       if (e.key === "ArrowLeft") handlePrev();
       if (e.key === "Escape") setSelectedPhotoIndex(null);
@@ -189,18 +173,13 @@ const OrgPage = () => {
 
   const handleTouchEnd = (e) => {
     if (touchStartX === null) return;
-
-    const touchEndX = e.changedTouches[0].clientX;
-    const deltaX = touchEndX - touchStartX;
-
+    const deltaX = e.changedTouches[0].clientX - touchStartX;
     if (deltaX > 50) handlePrev();
     else if (deltaX < -50) handleNext();
-
     setTouchStartX(null);
   };
 
   if (loading) return <Loading />;
-
   if (error)
     return (
       <>
@@ -224,19 +203,19 @@ const OrgPage = () => {
   return (
     <>
       <Navbar />
-      <div className="max-w-5xl mx-auto mt-30 px-6">
-        <div className="bg-white p-6 rounded-lg shadow-lg space-y-8">
-          {/* Header */}
-          <div className="flex items-center gap-6">
-            <div className="w-24 h-24 rounded-full overflow-hidden border border-gray-300">
+      <div className="max-w-5xl mx-auto mt-30 px-4 sm:px-6">
+        <div className="bg-white p-4 sm:p-6 rounded-lg shadow-lg space-y-6 sm:space-y-8">
+          {/* Header - Responsive layout with flex-col on small screens */}
+          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6">
+            <div className="w-32 h-32 sm:w-24 sm:h-24 rounded-full overflow-hidden border border-gray-300">
               <img
                 src={org.org_logo || DEFAULT_LOGO_URL}
                 alt="Org Logo"
                 className="w-full h-full object-cover"
               />
             </div>
-            <div className="flex-1">
-              <h1 className="text-3xl font-semibold text-gray-800">
+            <div className="flex-1 text-center sm:text-left">
+              <h1 className="text-2xl sm:text-3xl font-semibold text-gray-800">
                 {org.org_name}
               </h1>
               <p className="text-gray-600">
@@ -265,11 +244,11 @@ const OrgPage = () => {
           {tags.length > 0 && (
             <div>
               <h2 className="text-xl font-semibold text-gray-700 mb-2">Tags</h2>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
                 {tags.map((tag, idx) => (
                   <span
                     key={idx}
-                    className="bg-yellow-400 text-black px-3 py-1 rounded-full text-sm font-medium whitespace-nowrap"
+                    className="bg-yellow-400 text-black px-3 py-1 rounded-full text-sm font-medium"
                   >
                     {tag}
                   </span>
@@ -294,67 +273,67 @@ const OrgPage = () => {
               </h2>
               <div className="space-y-2">
                 {org.socmed_links.facebook && (
-                  <div className="flex items-center gap-3 text-blue-600">
+                  <div className="flex items-center gap-3 text-[#1877F2]">
                     <FaFacebook />
                     <a
                       href={org.socmed_links.facebook}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="underline"
+                      className="hover:underline hover:opacity-80 transition truncate"
                     >
-                      Facebook
+                      {org.socmed_links.facebook}
                     </a>
                   </div>
                 )}
                 {org.socmed_links.twitter && (
-                  <div className="flex items-center gap-3 text-blue-400">
-                    <FaTwitter />
+                  <div className="flex items-center gap-3 text-black">
+                    <FaXTwitter />
                     <a
                       href={org.socmed_links.twitter}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="underline"
+                      className="hover:underline hover:opacity-80 transition truncate"
                     >
-                      Twitter
+                      {org.socmed_links.twitter}
                     </a>
                   </div>
                 )}
                 {org.socmed_links.instagram && (
-                  <div className="flex items-center gap-3 text-pink-600">
+                  <div className="flex items-center gap-3 text-[#E1306C]">
                     <FaInstagram />
                     <a
                       href={org.socmed_links.instagram}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="underline"
+                      className="hover:underline hover:opacity-80 transition truncate"
                     >
-                      Instagram
+                      {org.socmed_links.instagram}
                     </a>
                   </div>
                 )}
                 {org.socmed_links.linkedin && (
-                  <div className="flex items-center gap-3 text-blue-800">
+                  <div className="flex items-center gap-3 text-[#0A66C2]">
                     <FaLinkedin />
                     <a
                       href={org.socmed_links.linkedin}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="underline"
+                      className="hover:underline hover:opacity-80 transition truncate"
                     >
-                      LinkedIn
+                      {org.socmed_links.linkedin}
                     </a>
                   </div>
                 )}
                 {org.socmed_links.website && (
-                  <div className="flex items-center gap-3 text-gray-600">
+                  <div className="flex items-center gap-3 text-gray-700">
                     <FaGlobe />
                     <a
                       href={org.socmed_links.website}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="underline"
+                      className="hover:underline hover:opacity-80 transition truncate"
                     >
-                      Website
+                      {org.socmed_links.website}
                     </a>
                   </div>
                 )}
@@ -362,20 +341,20 @@ const OrgPage = () => {
             </div>
           )}
 
-          {/* Applications */}
+          {/* Application Info */}
           {(org.application_form || org.application_dates) && (
             <div>
               <h2 className="text-xl font-semibold text-gray-700 mb-2">
                 Applications
               </h2>
               {org.application_form && (
-                <p className="mb-1">
+                <p className="break-words">
                   <span className="font-medium">Form:</span>{" "}
                   <a
                     href={org.application_form}
+                    className="text-blue-600 underline"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-600 underline"
                   >
                     {org.application_form}
                   </a>
@@ -402,19 +381,19 @@ const OrgPage = () => {
                     key={index}
                     src={url}
                     alt={`Featured ${index + 1}`}
-                    className="w-full h-52 object-cover rounded-md shadow-md cursor-pointer transition-transform duration-200 hover:scale-105"
+                    className="w-full h-40 sm:h-52 object-cover rounded-md shadow-md cursor-pointer transition-transform duration-200 hover:scale-105"
                     onClick={() => setSelectedPhotoIndex(index)}
                   />
                 ))}
               </div>
             ) : (
-              <div className="w-full h-48 border-2 border-dashed border-gray-300 bg-gray-100 flex items-center justify-center rounded-md">
+              <div className="w-full h-36 sm:h-48 border-2 border-dashed border-gray-300 flex justify-center items-center rounded-md">
                 <span className="text-gray-400">No featured photos yet.</span>
               </div>
             )}
           </div>
 
-          {/* Admin Edit Button */}
+          {/* Admin Edit */}
           {isAdmin && (
             <div className="text-center pt-4">
               <button
@@ -427,41 +406,43 @@ const OrgPage = () => {
           )}
         </div>
       </div>
-      {/* Image Modal */}
+
+      {/* Lightbox for photos */}
       {selectedPhotoIndex !== null && (
         <div
           className="fixed inset-0 backdrop-blur-md bg-black/10 flex items-center justify-center z-50"
           onClick={() => setSelectedPhotoIndex(null)}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
         >
           <div
-            className="relative max-w-4xl w-full max-h-[90vh] mx-4 flex items-center justify-center"
+            className="relative max-w-5xl w-full max-h-[90vh] mx-4 flex items-center justify-center px-4 sm:px-16"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Previous Button */}
             <button
               onClick={handlePrev}
-              className="absolute left-0 top-1/2 transform -translate-y-1/2 bg-maroon text-white p-3 rounded-full hover:bg-red-700 transition"
+              className="absolute left-1 sm:left-4 top-1/2 transform -translate-y-1/2 bg-maroon text-white p-2 sm:p-3 rounded-full hover:bg-red-700 z-10"
             >
               <FaChevronLeft />
             </button>
 
-            {/* Image */}
             <img
               src={featuredPhotos[selectedPhotoIndex]}
               alt={`Featured ${selectedPhotoIndex + 1}`}
               className="rounded-lg object-contain max-h-[90vh] w-full"
             />
 
-            {/* Next Button */}
             <button
               onClick={handleNext}
-              className="absolute right-0 top-1/2 transform -translate-y-1/2 bg-maroon text-white p-3 rounded-full hover:bg-red-700 transition"
+              className="absolute right-1 sm:right-4 top-1/2 transform -translate-y-1/2 bg-maroon text-white p-2 sm:p-3 rounded-full hover:bg-red-700 z-10"
             >
               <FaChevronRight />
             </button>
           </div>
         </div>
       )}
+
+      {atTop ? <ActionButton type="home" /> : <ActionButton type="top" />}
     </>
   );
 };

@@ -7,13 +7,15 @@ import ActionButton from "@/components/ui/actionbutton";
 import Select from "react-select";
 import {
   FaFacebook,
-  FaTwitter,
+  FaXTwitter,
   FaInstagram,
   FaLinkedin,
   FaGlobe,
   FaImage,
   FaTrash,
 } from "react-icons/fa6";
+import DatePicker from "react-datepicker";
+import { format } from "date-fns";
 
 const EditOrg = () => {
   const { slug } = useParams();
@@ -76,6 +78,17 @@ const EditOrg = () => {
         setLogoPreview(orgData.org_logo);
         setSocialLinks(orgData.socmed_links || {});
         setSelectedCategory(orgData.category);
+
+        if (orgData.application_dates) {
+          const dates = orgData.application_dates.split(" to ");
+          if (dates.length === 2) {
+            setOrg((prev) => ({
+              ...prev,
+              startDate: new Date(dates[0]),
+              endDate: new Date(dates[1]),
+            }));
+          }
+        }
 
         // Fetch tags associated with this organization
         const { data: tagData, error: tagError } = await supabase
@@ -283,6 +296,14 @@ const EditOrg = () => {
         }
       }
 
+      // Combine start and end date into a single string
+      let formattedApplicationDates = "";
+      if (org.startDate && org.endDate) {
+        const startDateStr = format(org.startDate, "MMMM dd, yyyy");
+        const endDateStr = format(org.endDate, "MMMM dd, yyyy");
+        formattedApplicationDates = `${startDateStr} to ${endDateStr}`;
+      }
+
       // Upload new featured photos with sequential numbering
       if (newPhotos.length > 0) {
         // Get current count of existing photos to determine starting index
@@ -342,7 +363,7 @@ const EditOrg = () => {
           about: org.about,
           socmed_links: socialLinks,
           application_form: org.application_form,
-          application_dates: org.application_dates,
+          application_dates: formattedApplicationDates,
           category: selectedCategory,
         })
         .eq("org_id", org.org_id);
@@ -714,13 +735,37 @@ const EditOrg = () => {
                     <label className="block font-medium text-gray-700 mb-2">
                       Application Dates
                     </label>
-                    <input
-                      type="text"
-                      name="application_dates"
-                      value={org.application_dates || ""}
-                      onChange={handleChange}
-                      className="w-full text-gray-700 border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-red-300 focus:border-red-500 transition"
-                    />
+                    <div className="flex gap-2">
+                      <DatePicker
+                        calendarClassName="my-datepicker"
+                        selected={org.startDate}
+                        onChange={(date) =>
+                          handleChange({
+                            target: { name: "startDate", value: date },
+                          })
+                        }
+                        selectsStart
+                        startDate={org.startDate}
+                        endDate={org.endDate}
+                        placeholderText="Start date"
+                        className="w-full text-gray-700 border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-red-300 focus:border-red-500 transition"
+                      />
+                      <DatePicker
+                        calendarClassName="my-datepicker"
+                        selected={org.endDate}
+                        onChange={(date) =>
+                          handleChange({
+                            target: { name: "endDate", value: date },
+                          })
+                        }
+                        selectsEnd
+                        startDate={org.startDate}
+                        endDate={org.endDate}
+                        minDate={org.startDate}
+                        placeholderText="End date"
+                        className="w-full text-gray-700 border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-red-300 focus:border-red-500 transition"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -737,9 +782,9 @@ const EditOrg = () => {
                         placeholder: "Facebook URL",
                       },
                       {
-                        icon: <FaTwitter className="text-sky-500" />,
+                        icon: <FaXTwitter className="text-grey-700" />,
                         name: "twitter",
-                        placeholder: "Twitter URL",
+                        placeholder: "X URL",
                       },
                       {
                         icon: <FaInstagram className="text-pink-500" />,

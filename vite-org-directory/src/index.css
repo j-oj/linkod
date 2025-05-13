@@ -137,3 +137,27 @@
 .react-select__menu {
   z-index: 10;
 }
+
+/* custom-datepicker.css */
+
+/* Start & End Date */
+.my-datepicker .react-datepicker__day--selected,
+.my-datepicker .react-datepicker__day--keyboard-selected {
+  background-color: #e11d48; /* red-600 */
+  color: white;
+  border-radius: 0.5rem;
+}
+
+/* Days in between (range) */
+.my-datepicker .react-datepicker__day--in-selecting-range,
+.my-datepicker .react-datepicker__day--in-range {
+  background-color: #fecaca; /* red-200 */
+  color: #b91c1c; /* red-700 */
+  border-radius: 0.5rem;
+}
+
+/* Optional: Hover effect on selectable days */
+.my-datepicker .react-datepicker__day:hover {
+  background-color: #fca5a5; /* red-300 */
+  color: #b91c1c;
+}
