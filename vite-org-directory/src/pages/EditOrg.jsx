@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 import Navbar from "../components/Navbar";
 import Loading from "../components/Loading";
+import ActionButton from "../components/ui/actionbutton";
 import Select from "react-select";
 import {
   FaFacebook,
@@ -10,12 +11,14 @@ import {
   FaInstagram,
   FaLinkedin,
   FaGlobe,
+  FaImage,
+  FaTrash,
 } from "react-icons/fa6";
 
 const EditOrg = () => {
   const { slug } = useParams();
   const [org, setOrg] = useState(null);
-  const [categories, setCategories] = useState([]); // List of categories
+  const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [socialLinks, setSocialLinks] = useState({
     facebook: "",
@@ -24,16 +27,29 @@ const EditOrg = () => {
     linkedin: "",
     website: "",
   });
-  const [logoFile, setLogoFile] = useState(null); // State for the logo file
+  const [logoFile, setLogoFile] = useState(null);
+  const [logoPreview, setLogoPreview] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [adminName, setAdminName] = useState("");
+  const [tagInput, setTagInput] = useState("");
+  const [orgTags, setOrgTags] = useState([]);
   const navigate = useNavigate();
+  const [existingPhotos, setExistingPhotos] = useState([]);
+  const [newPhotos, setNewPhotos] = useState([]);
+  const [photoPreviews, setPhotoPreviews] = useState([]);
+  const [featuredPhotos, setFeaturedPhotos] = useState([]);
+  const [featuredPhotoPreviews, setFeaturedPhotoPreviews] = useState([]);
+  const MAX_FEATURED_PHOTOS = 3;
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch organization data
+        // Get the current user session
+        const { data: sessionData } = await supabase.auth.getSession();
+        const session = sessionData?.session;
+
         const { data: orgData, error: orgError } = await supabase
           .from("organization")
           .select(
@@ -54,55 +70,80 @@ const EditOrg = () => {
           .eq("slug", slug)
           .single();
 
-        if (orgError || !orgData) {
-          throw new Error("Failed to fetch organization data.");
-        }
+        if (orgError || !orgData) throw new Error("Failed to fetch org");
+
         setOrg(orgData);
+        setLogoPreview(orgData.org_logo);
         setSocialLinks(orgData.socmed_links || {});
         setSelectedCategory(orgData.category);
 
-        // Fetch categories
+        // Fetch tags associated with this organization
+        const { data: tagData, error: tagError } = await supabase
+          .from("org_tag")
+          .select(
+            `
+            tag:tag_id(
+              tag_id,
+              tag_name
+            )
+          `
+          )
+          .eq("org_id", orgData.org_id);
+
+        if (!tagError && tagData) {
+          const tags = tagData.map((item) => item.tag.tag_name);
+          setOrgTags(tags);
+          setTagInput(tags.join(", "));
+        }
+
+        const { data: photoData, error: photoError } = await supabase
+          .from("featured_photos")
+          .select("photo_url")
+          .eq("org_id", orgData.org_id);
+
+        if (!photoError && photoData) {
+          setExistingPhotos(photoData.map((p) => p.photo_url));
+        }
+
         const { data: categoryData, error: categoryError } = await supabase
           .from("category")
           .select("category_id, category_name");
 
-        if (categoryError) {
-          throw new Error("Failed to fetch categories.");
-        }
+        if (categoryError) throw new Error("Failed to fetch categories");
+
         setCategories(categoryData);
 
-        // Fetch current user and role
         const { data: userData, error: userError } =
           await supabase.auth.getUser();
+        const userId = userData.user?.id;
+
         if (!userError && userData?.user) {
           const { data: roleData, error: roleError } = await supabase
             .from("user_roles")
             .select("role")
-            .eq("user_id", userData.user.id)
+            .eq("user_id", userId)
             .single();
 
-          if (roleError) {
-            console.error("Error fetching user role:", roleError);
-          } else {
+          if (!roleError) {
             if (roleData?.role === "superadmin") {
-              setIsAdmin(true); // Superadmin can edit all organizations
+              setIsAdmin(true);
+              setAdminName("Super Admin");
             } else if (roleData?.role === "admin") {
-              const { data: adminData, error: adminError } = await supabase
+              const { data: adminData } = await supabase
                 .from("admin")
-                .select("org_id")
-                .eq("admin_id", userData.user.id)
-                .single();
+                .select("org_id, admin_name")
+                .eq("admin_id", userId)
+                .maybeSingle();
 
-              if (adminError) {
-                console.error("Error fetching admin data:", adminError);
-              } else if (adminData?.org_id === orgData.org_id) {
-                setIsAdmin(true); // Admin can edit their own organization
+              if (adminData?.org_id === orgData.org_id) {
+                setIsAdmin(true);
+                setAdminName(adminData.admin_name || "Admin");
               }
             }
           }
         }
       } catch (err) {
-        console.error("Error loading org:", err);
+        console.error("Error:", err);
       } finally {
         setLoading(false);
       }
@@ -111,41 +152,186 @@ const EditOrg = () => {
     fetchData();
   }, [slug]);
 
+  useEffect(() => {
+    if (logoFile) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLogoPreview(reader.result);
+      };
+      reader.readAsDataURL(logoFile);
+    }
+  }, [logoFile]);
+
+  const handleLogoChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      setLogoFile(e.target.files[0]);
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setOrg((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleFeaturedPhotosChange = (e) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+
+    // Calculate how many more photos we can add based on the maximum allowed
+    const remainingSlots =
+      MAX_FEATURED_PHOTOS - existingPhotos.length - photoPreviews.length;
+
+    // Take only as many files as we have remaining slots
+    const files = Array.from(e.target.files).slice(0, remainingSlots);
+
+    // If we already have some selected files, combine them
+    setNewPhotos((prev) => [...prev, ...files]);
+
+    // Create previews for the newly selected files
+    const previews = files.map((file) => URL.createObjectURL(file));
+    setPhotoPreviews((prev) => [...prev, ...previews]);
+
+    // Alert user if some files were ignored due to the limit
+    if (e.target.files.length > remainingSlots) {
+      alert(
+        `Only ${remainingSlots} more photo${
+          remainingSlots !== 1 ? "s" : ""
+        } can be added. The first ${remainingSlots} photo${
+          remainingSlots !== 1 ? "s were" : " was"
+        } selected.`
+      );
+    }
+  };
+
+  // Also update the photo removal functionality to properly handle the arrays:
+
+  const removeNewPhoto = (index) => {
+    // Release the object URL to avoid memory leaks
+    URL.revokeObjectURL(photoPreviews[index]);
+
+    // Remove the photo from both arrays
+    const newPreviews = [...photoPreviews];
+    const newPhotosArray = [...newPhotos];
+
+    newPreviews.splice(index, 1);
+    newPhotosArray.splice(index, 1);
+
+    setPhotoPreviews(newPreviews);
+    setNewPhotos(newPhotosArray);
+  };
+
+  const handleDeletePhoto = async (url) => {
+    try {
+      // Remove from storage
+      const filePath = url.split(
+        "/storage/v1/object/public/featured-photos/"
+      )[1];
+      await supabase.storage.from("featured-photos").remove([filePath]);
+
+      // Remove from DB
+      await supabase
+        .from("featured_photos")
+        .delete()
+        .eq("org_id", org.org_id)
+        .eq("photo_url", url);
+
+      setExistingPhotos(existingPhotos.filter((p) => p !== url));
+    } catch (err) {
+      console.error("Delete failed:", err);
+      alert("Failed to delete image");
+    }
+  };
+
+  // Update the handleSubmit function to fix the file uploading issue
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
 
     try {
-      let logo_url = org.org_logo;
+      console.log("Submitting org update...");
+      let logo_url = org.org_logo; // Keep the existing logo URL by default
 
-      // Upload new logo if a file is selected
+      // Only attempt image upload if a new file was selected
       if (logoFile) {
         const fileExt = logoFile.name.split(".").pop();
         const filePath = `logos/${slug}-logo.${fileExt}`;
-        const { error: uploadError } = await supabase.storage
-          .from("org-logos")
-          .upload(filePath, logoFile, { upsert: true });
 
-        if (uploadError) {
-          console.error("Upload Error:", uploadError);
-          alert("Failed to upload logo.");
-          setSaving(false);
-          return;
+        // Delete existing file (if any)
+        await supabase.storage.from("org-logos").remove([filePath]);
+
+        // Upload new logo
+        const { data, error } = await supabase.storage
+          .from("org-logos")
+          .upload(filePath, logoFile, {
+            cacheControl: "3600",
+            upsert: false, // no need to upsert since we delete first
+          });
+
+        if (error) {
+          console.error("Upload error details:", error);
+          throw new Error(`Image upload failed: ${error.message}`);
         }
 
-        const { data: publicUrlData } = supabase.storage
+        // Get public URL with cache-busting query
+        const { data: urlData } = supabase.storage
           .from("org-logos")
           .getPublicUrl(filePath);
 
-        logo_url = publicUrlData?.publicUrl;
+        if (urlData && urlData.publicUrl) {
+          logo_url = `${urlData.publicUrl}?t=${Date.now()}`;
+        } else {
+          throw new Error("Failed to get public URL for uploaded image");
+        }
       }
 
-      // Update organization table
+      // Upload new featured photos with sequential numbering
+      if (newPhotos.length > 0) {
+        // Get current count of existing photos to determine starting index
+        const startingPhotoIndex = existingPhotos.length + 1;
+
+        // Process each new photo
+        for (let i = 0; i < newPhotos.length; i++) {
+          const photo = newPhotos[i];
+          const ext = photo.name.split(".").pop();
+          // Simple sequential numbering (1, 2, 3, etc.)
+          const photoNumber = startingPhotoIndex + i;
+          const filename = `${slug}-featured-${photoNumber}.${ext}`;
+          const path = `featured/${filename}`;
+
+          // Use upsert: true to allow replacing existing files if they have the same name
+          const { error: uploadError } = await supabase.storage
+            .from("featured-photos")
+            .upload(path, photo, {
+              cacheControl: "3600",
+              upsert: true,
+            });
+
+          if (uploadError) {
+            throw new Error(
+              `Featured photo upload failed: ${uploadError.message}`
+            );
+          }
+
+          const { data: publicData } = supabase.storage
+            .from("featured-photos")
+            .getPublicUrl(path);
+
+          const publicUrl = publicData?.publicUrl;
+          if (publicUrl) {
+            // Insert into DB
+            const { error: insertError } = await supabase
+              .from("featured_photos")
+              .insert({ org_id: org.org_id, photo_url: publicUrl });
+
+            if (insertError) {
+              throw new Error(
+                `Failed to save photo URL: ${insertError.message}`
+              );
+            }
+          }
+        }
+      }
+
+      // Update organization details in the database
       const { error: updateError } = await supabase
         .from("organization")
         .update({
@@ -161,12 +347,135 @@ const EditOrg = () => {
         })
         .eq("org_id", org.org_id);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error("Database update failed:", updateError);
+        throw new Error(
+          `Failed to update organization details: ${updateError.message}`
+        );
+      }
+      // Process tags more efficiently
+      const newTagNames = tagInput
+        .split(",")
+        .map((tag) => tag.trim().toLowerCase())
+        .filter((tag) => tag.length > 0);
 
+      // Find tags to add and remove
+      const tagsToAdd = newTagNames.filter((tag) => !orgTags.includes(tag));
+      const tagsToRemove = orgTags.filter((tag) => !newTagNames.includes(tag));
+
+      if (tagsToAdd.length > 0 || tagsToRemove.length > 0) {
+        console.log("Tag changes detected, processing updates...");
+
+        if (tagsToRemove.length > 0) {
+          // Find tag IDs to remove
+          const { data: tagsToRemoveData, error: findRemoveError } =
+            await supabase
+              .from("tag")
+              .select("tag_id")
+              .in("tag_name", tagsToRemove);
+
+          if (findRemoveError) {
+            throw new Error(
+              `Error finding tags to remove: ${findRemoveError.message}`
+            );
+          }
+
+          const tagIdsToRemove = tagsToRemoveData.map((tag) => tag.tag_id);
+
+          if (tagIdsToRemove.length > 0) {
+            console.log("Removing tag IDs:", tagIdsToRemove);
+
+            const { error: deleteTagsError } = await supabase
+              .from("org_tag")
+              .delete()
+              .eq("org_id", org.org_id)
+              .in("tag_id", tagIdsToRemove);
+
+            if (deleteTagsError) {
+              throw new Error(
+                `Error removing tags: ${deleteTagsError.message}`
+              );
+            }
+          }
+
+          console.log("Org ID:", org.org_id);
+          console.log("Tags to remove:", tagsToRemove);
+          console.log("Tag IDs to remove:", tagIdsToRemove);
+        }
+
+        if (tagsToAdd.length > 0) {
+          // Check which tags already exist
+          const { data: existingTags, error: fetchTagsError } = await supabase
+            .from("tag")
+            .select("tag_id, tag_name")
+            .in("tag_name", tagsToAdd);
+
+          if (fetchTagsError) {
+            throw new Error(
+              `Error fetching existing tags: ${fetchTagsError.message}`
+            );
+          }
+
+          // Find which tags need to be created
+          const existingTagNames = existingTags.map((tag) =>
+            tag.tag_name.toLowerCase()
+          );
+          const tagsToCreate = tagsToAdd.filter(
+            (tag) => !existingTagNames.includes(tag)
+          );
+
+          // Create new tags if needed
+          let newlyCreatedTags = [];
+          if (tagsToCreate.length > 0) {
+            const { data: insertedTags, error: insertTagsError } =
+              await supabase
+                .from("tag")
+                .upsert(
+                  tagsToCreate.map((tagName) => ({ tag_name: tagName })),
+                  { onConflict: "tag_name" }
+                )
+                .select();
+
+            if (insertTagsError) {
+              throw new Error(
+                `Error creating new tags: ${insertTagsError.message}`
+              );
+            }
+
+            newlyCreatedTags = insertedTags || [];
+          }
+
+          // Combine existing and newly created tags that need to be linked
+          const allTagsToLink = [...existingTags, ...newlyCreatedTags];
+
+          // Create links between org and tags
+          const orgTagLinks = allTagsToLink.map((tag) => ({
+            org_id: org.org_id,
+            tag_id: tag.tag_id,
+          }));
+
+          if (orgTagLinks.length > 0) {
+            const { error: linkTagsError } = await supabase
+              .from("org_tag")
+              .upsert(orgTagLinks, { onConflict: "org_id,tag_id" });
+
+            if (linkTagsError) {
+              throw new Error(
+                `Error linking tags to organization: ${linkTagsError.message}`
+              );
+            }
+          }
+        }
+
+        // Update local state to reflect new tags
+        setOrgTags(newTagNames);
+      }
+
+      // Success! Navigate back to the org page
       navigate(`/orgs/${slug}`);
     } catch (err) {
-      console.error("Submit error:", err);
-      alert("Failed to update organization.");
+      console.error("Error during update:", err);
+      alert(`Error: ${err.message || "Unknown error"}. Please try again.`);
     } finally {
       setSaving(false);
     }
@@ -186,211 +495,392 @@ const EditOrg = () => {
   return (
     <>
       <Navbar />
-      <div className="max-w-3xl mx-auto mt-8 px-6">
-        <h1 className="text-2xl font-bold mb-4">Edit Organization</h1>
-        <form
-          onSubmit={handleSubmit}
-          className="space-y-6 bg-gray-100 p-6 rounded shadow"
-        >
-          {/* Logo Display */}
-          <div className="flex items-center gap-4">
-            <img
-              src={org.org_logo || "https://placehold.co/600x400"}
-              alt="Organization Logo"
-              className="w-32 h-32 object-cover rounded-full border"
-            />
-            <label
-              htmlFor="logo-upload"
-              className="cursor-pointer bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-md inline-block"
-            >
-              {logoFile ? "Change Logo" : "Edit Logo"}
-            </label>
-            <input
-              id="logo-upload"
-              type="file"
-              accept="image/*"
-              onChange={(e) => setLogoFile(e.target.files[0])}
-              className="hidden"
-            />
-          </div>
-
-          {/* Basic Info */}
-          <div>
-            <label className="block font-medium">Organization Name</label>
-            <input
-              type="text"
-              name="org_name"
-              value={org.org_name}
-              onChange={handleChange}
-              className="w-full border p-2 rounded mt-1"
-            />
-          </div>
-
-          <div>
-            <label className="block font-medium">President</label>
-            <input
-              type="text"
-              name="president"
-              value={org.president || ""}
-              onChange={handleChange}
-              className="w-full border p-2 rounded mt-1"
-            />
-          </div>
-
-          <div>
-            <label className="block font-medium">Email</label>
-            <input
-              type="email"
-              name="org_email"
-              value={org.org_email || ""}
-              onChange={handleChange}
-              className="w-full border p-2 rounded mt-1"
-            />
-          </div>
-
-          <div>
-            <label className="block font-medium">About</label>
-            <textarea
-              name="about"
-              value={org.about || ""}
-              onChange={handleChange}
-              className="w-full border p-2 rounded mt-1"
-              rows={5}
-            />
-          </div>
-
-          {/* Category Selector */}
-          <div>
-            <label className="block font-medium">Category</label>
-            <Select
-              options={categories.map((cat) => ({
-                value: cat.category_id,
-                label: cat.category_name,
-              }))}
-              value={
-                categories
-                  .map((cat) => ({
-                    value: cat.category_id,
-                    label: cat.category_name,
-                  }))
-                  .find((option) => option.value === selectedCategory) || null
-              }
-              onChange={(selectedOption) =>
-                setSelectedCategory(selectedOption?.value || null)
-              }
-              className="react-select-container"
-              classNamePrefix="react-select"
-              placeholder="Select category"
-              isClearable
-            />
-          </div>
-
-          {/* Social Links */}
-          <div>
-            <label className="block font-medium">Social Media Links</label>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <FaGlobe className="text-gray-700 text-xl" />
-                <input
-                  type="url"
-                  placeholder="Website URL"
-                  value={socialLinks.website || ""}
-                  onChange={(e) =>
-                    setSocialLinks({ ...socialLinks, website: e.target.value })
-                  }
-                  className="w-full border p-2 rounded mt-1"
-                />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <FaFacebook className="text-blue-600 text-xl" />
-                <input
-                  type="url"
-                  placeholder="Facebook URL"
-                  value={socialLinks.facebook || ""}
-                  onChange={(e) =>
-                    setSocialLinks({ ...socialLinks, facebook: e.target.value })
-                  }
-                  className="w-full border p-2 rounded mt-1"
-                />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <FaTwitter className="text-gray-900 text-xl" />
-                <input
-                  type="url"
-                  placeholder="Twitter URL"
-                  value={socialLinks.twitter || ""}
-                  onChange={(e) =>
-                    setSocialLinks({ ...socialLinks, twitter: e.target.value })
-                  }
-                  className="w-full border p-2 rounded mt-1"
-                />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <FaInstagram className="text-pink-500 text-xl" />
-                <input
-                  type="url"
-                  placeholder="Instagram URL"
-                  value={socialLinks.instagram || ""}
-                  onChange={(e) =>
-                    setSocialLinks({
-                      ...socialLinks,
-                      instagram: e.target.value,
-                    })
-                  }
-                  className="w-full border p-2 rounded mt-1"
-                />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <FaLinkedin className="text-blue-700 text-xl" />
-                <input
-                  type="url"
-                  placeholder="LinkedIn URL"
-                  value={socialLinks.linkedin || ""}
-                  onChange={(e) =>
-                    setSocialLinks({ ...socialLinks, linkedin: e.target.value })
-                  }
-                  className="w-full border p-2 rounded mt-1"
-                />
-              </div>
+      <div className="max-w-6xl mx-auto mt-30 mb-10 px-6">
+        <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+          {/* Header Section */}
+          <div className="bg-gray-50 px-8 py-6 border-b">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+              <h1 className="text-2xl font-semibold text-gray-800">
+                Organization Profile
+              </h1>
+              <div className="text-sm text-gray-600">Hello, {adminName}</div>
             </div>
           </div>
 
-          <div>
-            <label className="block font-medium">Application Form</label>
-            <input
-              type="text"
-              name="application_form"
-              value={org.application_form || ""}
-              onChange={handleChange}
-              className="w-full border p-2 rounded mt-1"
-            />
-          </div>
+          <form onSubmit={handleSubmit} className="p-8">
+            <div className="flex flex-col md:flex-row -mx-4">
+              {/* Left Column - Profile Info */}
+              <div className="w-full md:w-1/3 px-4 mb-8 md:mb-0">
+                <div className="flex flex-col items-center">
+                  <div className="relative">
+                    <img
+                      src={logoPreview || "https://placehold.co/150"}
+                      alt="Organization Logo"
+                      className="w-32 h-32 object-cover rounded-full border-4 border-white shadow-md"
+                    />
+                    <label
+                      htmlFor="logo-upload"
+                      className="absolute bottom-0 right-0 bg-maroon hover:bg-red-800 text-white p-2 rounded-full shadow cursor-pointer"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-4 w-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                        />
+                      </svg>
+                      <input
+                        id="logo-upload"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleLogoChange}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
 
-          <div>
-            <label className="block font-medium">Application Dates</label>
-            <input
-              type="text"
-              name="application_dates"
-              value={org.application_dates || ""}
-              onChange={handleChange}
-              className="w-full border p-2 rounded mt-1"
-            />
-          </div>
+                  <h2 className="mt-4 text-xl font-semibold text-center">
+                    {org.org_name}
+                  </h2>
+                  <p className="text-gray-500 text-center">{org.president}</p>
 
-          <div className="text-right">
-            <button
-              type="submit"
-              disabled={saving}
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-            >
-              {saving ? "Saving..." : "Save Changes"}
-            </button>
-          </div>
-        </form>
+                  {/* About section */}
+                  <div className="mt-8 w-full">
+                    <label className="block font-medium text-gray-700 mb-2">
+                      About
+                    </label>
+                    <textarea
+                      name="about"
+                      value={org.about || ""}
+                      onChange={handleChange}
+                      rows={5}
+                      className="w-full text-gray-700 border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-red-300 focus:border-red-500 transition"
+                      placeholder="Tell us about your organization..."
+                    />
+                  </div>
+
+                  {/* Tags field */}
+                  <div className="mt-6 w-full">
+                    <label className="block font-medium text-gray-700 mb-2">
+                      Tags
+                    </label>
+                    <input
+                      type="text"
+                      value={tagInput}
+                      onChange={(e) => setTagInput(e.target.value)}
+                      className="w-full text-gray-700 border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-red-300 focus:border-red-500 transition"
+                      placeholder="Enter tags separated by commas"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column - Settings */}
+              <div className="w-full md:w-2/3 px-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Basic Info Fields */}
+                  <div>
+                    <label className="block font-medium text-gray-700 mb-2">
+                      Organization Name
+                    </label>
+                    <input
+                      type="text"
+                      name="org_name"
+                      value={org.org_name || ""}
+                      onChange={handleChange}
+                      className="w-full text-gray-700 border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-red-300 focus:border-red-500 transition"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-medium text-gray-700 mb-2">
+                      President
+                    </label>
+                    <input
+                      type="text"
+                      name="president"
+                      value={org.president || ""}
+                      onChange={handleChange}
+                      className="w-full text-gray-700 border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-red-300 focus:border-red-500 transition"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-medium text-gray-700 mb-2">
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      name="org_email"
+                      value={org.org_email || ""}
+                      onChange={handleChange}
+                      className="w-full text-gray-700 border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-red-300 focus:border-red-500 transition"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-medium text-gray-700 mb-2">
+                      Category
+                    </label>
+                    <Select
+                      options={categories.map((cat) => ({
+                        value: cat.category_id,
+                        label: cat.category_name,
+                      }))}
+                      value={
+                        categories
+                          .map((cat) => ({
+                            value: cat.category_id,
+                            label: cat.category_name,
+                          }))
+                          .find(
+                            (option) => option.value === selectedCategory
+                          ) || null
+                      }
+                      onChange={(selectedOption) =>
+                        setSelectedCategory(selectedOption?.value || null)
+                      }
+                      className="text-sm"
+                      classNamePrefix="select"
+                      placeholder="Select category"
+                      isClearable
+                      styles={{
+                        control: (base) => ({
+                          ...base,
+                          borderColor: "#e2e8f0",
+                          borderRadius: "0.5rem",
+                          padding: "2px",
+                          boxShadow: "none",
+                          transition: "border-color 0.2s ease",
+                          "&:hover": {
+                            borderColor: "#cbd5e0",
+                          },
+                        }),
+                        option: (base, state) => ({
+                          ...base,
+                          backgroundColor: state.isSelected
+                            ? "maroon"
+                            : state.isFocused
+                            ? "#ffdbdb"
+                            : "white",
+                          color: state.isSelected
+                            ? "white"
+                            : state.isFocused
+                            ? "#7f1d1d"
+                            : "#374151",
+                          cursor: "pointer",
+                          transition:
+                            "background-color 0.2s ease, color 0.2s ease",
+                          "&:active": {
+                            backgroundColor: "maroon",
+                            color: "white",
+                          },
+                        }),
+                        menu: (base) => ({
+                          ...base,
+                          borderRadius: "0.5rem",
+                          marginTop: "4px",
+                          boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
+                        }),
+                        menuList: (base) => ({
+                          ...base,
+                          padding: "0",
+                        }),
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-medium text-gray-700 mb-2">
+                      Application Form URL
+                    </label>
+                    <input
+                      type="text"
+                      name="application_form"
+                      value={org.application_form || ""}
+                      onChange={handleChange}
+                      className="w-full text-gray-700 border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-red-300 focus:border-red-500 transition"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-medium text-gray-700 mb-2">
+                      Application Dates
+                    </label>
+                    <input
+                      type="text"
+                      name="application_dates"
+                      value={org.application_dates || ""}
+                      onChange={handleChange}
+                      className="w-full text-gray-700 border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-red-300 focus:border-red-500 transition"
+                    />
+                  </div>
+                </div>
+
+                {/* Social Media Section */}
+                <div className="mt-8">
+                  <h3 className="font-medium text-gray-800 mb-4">
+                    Social Media Links
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {[
+                      {
+                        icon: <FaFacebook className="text-blue-600" />,
+                        name: "facebook",
+                        placeholder: "Facebook URL",
+                      },
+                      {
+                        icon: <FaTwitter className="text-sky-500" />,
+                        name: "twitter",
+                        placeholder: "Twitter URL",
+                      },
+                      {
+                        icon: <FaInstagram className="text-pink-500" />,
+                        name: "instagram",
+                        placeholder: "Instagram URL",
+                      },
+                      {
+                        icon: <FaLinkedin className="text-blue-800" />,
+                        name: "linkedin",
+                        placeholder: "LinkedIn URL",
+                      },
+                      {
+                        icon: <FaGlobe className="text-gray-600" />,
+                        name: "website",
+                        placeholder: "Website URL",
+                      },
+                    ].map(({ icon, name, placeholder }) => (
+                      <div
+                        key={name}
+                        className="flex items-center gap-3 bg-gray-50 rounded-lg p-3 border border-gray-200"
+                      >
+                        <span className="flex-shrink-0">{icon}</span>
+                        <input
+                          type="url"
+                          placeholder={placeholder}
+                          value={socialLinks[name] || ""}
+                          onChange={(e) =>
+                            setSocialLinks({
+                              ...socialLinks,
+                              [name]: e.target.value,
+                            })
+                          }
+                          className="w-full bg-transparent border-0 focus:ring-0 p-0 text-sm text-gray-700 placeholder-gray-400"
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Featured Photos Section */}
+                  <div className="mt-8">
+                    <h3 className="font-medium text-gray-800 mb-4">
+                      Featured Photos{" "}
+                      <span className="text-sm text-gray-500">
+                        ({existingPhotos.length + photoPreviews.length}/
+                        {MAX_FEATURED_PHOTOS} max)
+                      </span>
+                    </h3>
+
+                    {/* Photo Preview Area */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                      {/* Existing Photos */}
+                      {existingPhotos.map((url, index) => (
+                        <div key={`existing-${index}`} className="relative">
+                          <img
+                            src={url}
+                            alt={`Featured photo ${index + 1}`}
+                            className="w-full h-40 object-cover rounded-lg border border-gray-200"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleDeletePhoto(url)}
+                            className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600 transition"
+                          >
+                            <FaTrash className="text-xs" />
+                          </button>
+                        </div>
+                      ))}
+
+                      {/* New Photo Previews */}
+                      {photoPreviews.map((url, index) => (
+                        <div key={`preview-${index}`} className="relative">
+                          <img
+                            src={url}
+                            alt={`New photo ${index + 1}`}
+                            className="w-full h-40 object-cover rounded-lg border border-gray-200"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              // You'll need to implement this function to remove from photoPreviews array
+                              const newPreviews = [...photoPreviews];
+                              newPreviews.splice(index, 1);
+                              setPhotoPreviews(newPreviews);
+                            }}
+                            className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600 transition"
+                          >
+                            <FaTrash className="text-xs" />
+                          </button>
+                        </div>
+                      ))}
+
+                      {/* Add Photo Placeholder */}
+                      {existingPhotos.length + photoPreviews.length <
+                        MAX_FEATURED_PHOTOS && (
+                        <label className="border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center h-40 cursor-pointer hover:border-red-300 transition">
+                          <FaImage className="text-gray-400 text-2xl mb-2" />
+                          <span className="text-sm text-gray-500">
+                            Add Photos
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            onChange={handleFeaturedPhotosChange}
+                            className="hidden"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeNewPhoto(index)}
+                            className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600 transition"
+                          >
+                            <FaTrash className="text-xs" />
+                          </button>
+                        </label>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="mt-8 flex flex-col sm:flex-row items-center justify-end gap-4">
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/orgs/${slug}`)}
+                    className="w-full sm:w-auto px-6 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="w-full sm:w-auto px-6 py-2 bg-maroon hover:bg-red-800 text-white font-medium rounded-lg shadow transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {saving ? "Saving..." : "Save Changes"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
+        <ActionButton type="top" />
       </div>
     </>
   );
