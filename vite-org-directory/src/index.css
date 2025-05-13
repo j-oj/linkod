@@ -116,6 +116,8 @@
 /* Custom colors for Website */
 @theme {
   --color-maroon: #7b1113;
+  --color-mustard: #ffad14;
+  --color-green: #00563f;
 }
 
 @layer base {

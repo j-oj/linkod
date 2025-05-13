@@ -130,7 +130,7 @@ const Navbar = () => {
   };
 
   return (
-    <div className="bg-maroon text-white px-6 py-4 flex justify-between items-center relative">
+    <div className="fixed top-0 left-0 w-full z-50 bg-maroon text-white px-6 py-4 flex justify-between items-center">
       <div className="flex items-center gap-2">
         <img src="/templogo.png" alt="logo" className="w-12 md:w-14" />
         <Link to="/">
@@ -142,23 +142,6 @@ const Navbar = () => {
       </div>
 
       <div className="flex items-center gap-4 relative" ref={dropdownRef}>
-        {(userRole === "admin" || userRole === "superadmin") && (
-          <div className="hidden md:block text-sm mr-3">
-            <span>
-              Hello,{" "}
-              {
-                (
-                  user?.user_metadata?.full_name ||
-                  user?.raw_user_meta_data?.full_name ||
-                  user?.email?.split("@")[0] ||
-                  "User"
-                ).split(" ")[0]
-              }
-              !
-            </span>
-          </div>
-        )}
-
         <button
           className="text-xl"
           onClick={() => document.body.classList.toggle("dark")}
@@ -229,7 +212,7 @@ const Navbar = () => {
                   {userRole === "admin" && adminOrgSlug && (
                     <li>
                       <Link
-                        to={`/orgs/${adminOrgSlug}`}
+                        to={`/edit-org/${adminOrgSlug}`}
                         className="block px-4 py-2 hover:bg-gray-200"
                       >
                         Edit Organization

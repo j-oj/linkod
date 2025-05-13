@@ -3,19 +3,30 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/supabaseClient";
 import Navbar from "@/components/navbar.jsx";
 import Loading from "@/components/loading.jsx";
-import { FaFacebook, FaInstagram, FaEnvelope } from "react-icons/fa";
+import {
+  FaFacebook,
+  FaTwitter,
+  FaInstagram,
+  FaLinkedin,
+  FaGlobe,
+  FaChevronLeft,
+  FaChevronRight,
+} from "react-icons/fa";
+
 
 const DEFAULT_LOGO_URL = "https://placehold.co/600x400";
 
 const OrgPage = () => {
   const { slug } = useParams();
   const [org, setOrg] = useState(null);
-  const [tags, setTags] = useState([]); // For the tags
+  const [tags, setTags] = useState([]);
   const [user, setUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const [featuredPhotos, setFeaturedPhotos] = useState([]);
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -47,10 +58,22 @@ const OrgPage = () => {
 
         setOrg(orgData);
 
+        // Fetch featured photos from featured_photos table
+        const { data: photoData, error: photoError } = await supabase
+          .from("featured_photos")
+          .select("photo_url")
+          .eq("org_id", orgData.org_id);
+
+        if (!photoError && photoData) {
+          setFeaturedPhotos(photoData.map((p) => p.photo_url));
+        } else {
+          console.error("Failed to fetch featured photos:", photoError);
+        }
+
         // Fetch tags (from org_tag table, referencing tag table)
         const { data: tagData, error: tagError } = await supabase
           .from("org_tag")
-          .select("tag_id, tag:tag_id(tag_name)") // Join with tag table
+          .select("tag_id, tag:tag_id(tag_name)")
           .eq("org_id", orgData.org_id);
 
         if (tagError) {
@@ -108,7 +131,73 @@ const OrgPage = () => {
     fetchData();
   }, [slug]);
 
+  const handlePrev = () => {
+    setSelectedPhotoIndex((prev) =>
+      prev === 0 ? featuredPhotos.length - 1 : prev - 1
+    );
+  };
+
+  const handleNext = () => {
+    setSelectedPhotoIndex((prev) =>
+      prev === featuredPhotos.length - 1 ? 0 : prev + 1
+    );
+  };
+
   const handleEdit = () => navigate(`/edit-org/${slug}`);
+
+  {
+    selectedPhotoIndex && (
+      <div
+        className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"
+        onClick={() => setSelectedPhotoIndex(index)}
+      >
+        <div className="relative max-w-3xl max-h-[90vh]">
+          <img
+            src={selectedPhotoIndex}
+            alt="Enlarged"
+            className="rounded-lg object-contain max-h-[90vh] w-full"
+          />
+          <button
+            onClick={() => setSelectedPhotoIndex(index)}
+            className="absolute top-2 right-2 text-white bg-black bg-opacity-50 rounded-full p-2 hover:bg-opacity-80 transition"
+          >
+            ✕
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (selectedPhotoIndex === null) return;
+
+      if (e.key === "ArrowRight") handleNext();
+      if (e.key === "ArrowLeft") handlePrev();
+      if (e.key === "Escape") setSelectedPhotoIndex(null);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedPhotoIndex]);
+
+  const [touchStartX, setTouchStartX] = useState(null);
+
+  const handleTouchStart = (e) => {
+    setTouchStartX(e.touches[0].clientX);
+  };
+
+  const handleTouchEnd = (e) => {
+    if (touchStartX === null) return;
+
+    const touchEndX = e.changedTouches[0].clientX;
+    const deltaX = touchEndX - touchStartX;
+
+    if (deltaX > 50) handlePrev();
+    else if (deltaX < -50) handleNext();
+
+    setTouchStartX(null);
+  };
 
   if (loading) return <Loading />;
 
@@ -126,7 +215,7 @@ const OrgPage = () => {
     return (
       <>
         <Navbar />
-        <div className="flex justify-center items-center h-64">
+        <div className="flex justify-center items-center h-64 mt-16">
           <div className="text-xl">Organization not found</div>
         </div>
       </>
@@ -135,11 +224,11 @@ const OrgPage = () => {
   return (
     <>
       <Navbar />
-      <div className="max-w-5xl mx-auto mt-8 px-6">
-        <div className="bg-gray-100 p-6 rounded-md shadow space-y-6">
+      <div className="max-w-5xl mx-auto mt-30 px-6">
+        <div className="bg-white p-6 rounded-lg shadow-lg space-y-8">
           {/* Header */}
-          <div className="flex items-center gap-4">
-            <div className="w-20 h-20 rounded-full overflow-hidden border">
+          <div className="flex items-center gap-6">
+            <div className="w-24 h-24 rounded-full overflow-hidden border border-gray-300">
               <img
                 src={org.org_logo || DEFAULT_LOGO_URL}
                 alt="Org Logo"
@@ -147,7 +236,9 @@ const OrgPage = () => {
               />
             </div>
             <div className="flex-1">
-              <h1 className="text-2xl font-bold">{org.org_name}</h1>
+              <h1 className="text-3xl font-semibold text-gray-800">
+                {org.org_name}
+              </h1>
               <p className="text-gray-600">
                 Led by:{" "}
                 <span className="font-medium">{org.president || "N/A"}</span>
@@ -162,7 +253,7 @@ const OrgPage = () => {
                 Email:{" "}
                 <a
                   href={`mailto:${org.org_email}`}
-                  className="text-blue-500 underline"
+                  className="text-blue-600 underline"
                 >
                   {org.org_email || "N/A"}
                 </a>
@@ -173,7 +264,7 @@ const OrgPage = () => {
           {/* Tags */}
           {tags.length > 0 && (
             <div>
-              <h2 className="text-xl font-semibold mb-2">Tags</h2>
+              <h2 className="text-xl font-semibold text-gray-700 mb-2">Tags</h2>
               <div className="flex flex-wrap gap-2">
                 {tags.map((tag, idx) => (
                   <span
@@ -189,7 +280,7 @@ const OrgPage = () => {
 
           {/* About */}
           <div>
-            <h2 className="text-xl font-semibold mb-2">About</h2>
+            <h2 className="text-xl font-semibold text-gray-700 mb-2">About</h2>
             <p className="text-gray-700 whitespace-pre-line">
               {org.about || "No description available."}
             </p>
@@ -198,42 +289,72 @@ const OrgPage = () => {
           {/* Social Media */}
           {org.socmed_links && Object.keys(org.socmed_links).length > 0 && (
             <div>
-              <h2 className="text-xl font-semibold mb-2">Social Media</h2>
+              <h2 className="text-xl font-semibold text-gray-700 mb-2">
+                Social Media
+              </h2>
               <div className="space-y-2">
                 {org.socmed_links.facebook && (
-                  <div className="flex items-center gap-2">
-                    <FaFacebook className="text-blue-600" />
+                  <div className="flex items-center gap-3 text-blue-600">
+                    <FaFacebook />
                     <a
                       href={org.socmed_links.facebook}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-blue-500 underline"
+                      className="underline"
                     >
                       Facebook
                     </a>
                   </div>
                 )}
+                {org.socmed_links.twitter && (
+                  <div className="flex items-center gap-3 text-blue-400">
+                    <FaTwitter />
+                    <a
+                      href={org.socmed_links.twitter}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline"
+                    >
+                      Twitter
+                    </a>
+                  </div>
+                )}
                 {org.socmed_links.instagram && (
-                  <div className="flex items-center gap-2">
-                    <FaInstagram className="text-pink-600" />
+                  <div className="flex items-center gap-3 text-pink-600">
+                    <FaInstagram />
                     <a
                       href={org.socmed_links.instagram}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-pink-500 underline"
+                      className="underline"
                     >
                       Instagram
                     </a>
                   </div>
                 )}
-                {org.socmed_links.email && (
-                  <div className="flex items-center gap-2">
-                    <FaEnvelope className="text-yellow-600" />
+                {org.socmed_links.linkedin && (
+                  <div className="flex items-center gap-3 text-blue-800">
+                    <FaLinkedin />
                     <a
-                      href={`mailto:${org.socmed_links.email}`}
-                      className="text-yellow-500 underline"
+                      href={org.socmed_links.linkedin}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline"
                     >
-                      {org.socmed_links.email}
+                      LinkedIn
+                    </a>
+                  </div>
+                )}
+                {org.socmed_links.website && (
+                  <div className="flex items-center gap-3 text-gray-600">
+                    <FaGlobe />
+                    <a
+                      href={org.socmed_links.website}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline"
+                    >
+                      Website
                     </a>
                   </div>
                 )}
@@ -242,34 +363,11 @@ const OrgPage = () => {
           )}
 
           {/* Applications */}
-          {(org.socmed_links?.form || org.socmed_links?.dates) && (
-            <div>
-              <h2 className="text-xl font-semibold mb-2">Applications</h2>
-              {org.socmed_links.form && (
-                <p className="mb-1">
-                  <span className="font-medium">Form:</span>{" "}
-                  <a
-                    href={org.socmed_links.form}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-500 underline"
-                  >
-                    {org.socmed_links.form}
-                  </a>
-                </p>
-              )}
-              {org.socmed_links.dates && (
-                <p>
-                  <span className="font-medium">Dates:</span>{" "}
-                  {org.socmed_links.dates}
-                </p>
-              )}
-            </div>
-          )}
-
           {(org.application_form || org.application_dates) && (
             <div>
-              <h2 className="text-xl font-semibold mb-2">Applications</h2>
+              <h2 className="text-xl font-semibold text-gray-700 mb-2">
+                Applications
+              </h2>
               {org.application_form && (
                 <p className="mb-1">
                   <span className="font-medium">Form:</span>{" "}
@@ -277,7 +375,7 @@ const OrgPage = () => {
                     href={org.application_form}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-500 underline"
+                    className="text-blue-600 underline"
                   >
                     {org.application_form}
                   </a>
@@ -292,19 +390,36 @@ const OrgPage = () => {
             </div>
           )}
 
-          {/* Org Photo */}
+          {/* Featured Photos */}
           <div>
-            <h2 className="text-xl font-semibold mb-2">Featured Photos</h2>
-            <div className="w-full h-32 border border-dashed flex items-center justify-center rounded bg-white">
-              <span className="text-gray-400">Photo Placeholder</span>
-            </div>
+            <h2 className="text-xl font-semibold text-gray-700 mb-2">
+              Featured Photos
+            </h2>
+            {featuredPhotos.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                {featuredPhotos.map((url, index) => (
+                  <img
+                    key={index}
+                    src={url}
+                    alt={`Featured ${index + 1}`}
+                    className="w-full h-52 object-cover rounded-md shadow-md cursor-pointer transition-transform duration-200 hover:scale-105"
+                    onClick={() => setSelectedPhotoIndex(index)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="w-full h-48 border-2 border-dashed border-gray-300 bg-gray-100 flex items-center justify-center rounded-md">
+                <span className="text-gray-400">No featured photos yet.</span>
+              </div>
+            )}
           </div>
 
+          {/* Admin Edit Button */}
           {isAdmin && (
-            <div className="mt-6">
+            <div className="text-center pt-4">
               <button
                 onClick={handleEdit}
-                className="bg-maroon text-white px-4 py-2 rounded-lg hover:bg-red-800"
+                className="bg-maroon text-white px-6 py-2 rounded-lg hover:bg-red-800 transition"
               >
                 Edit Organization
               </button>
@@ -312,6 +427,41 @@ const OrgPage = () => {
           )}
         </div>
       </div>
+      {/* Image Modal */}
+      {selectedPhotoIndex !== null && (
+        <div
+          className="fixed inset-0 backdrop-blur-md bg-black/10 flex items-center justify-center z-50"
+          onClick={() => setSelectedPhotoIndex(null)}
+        >
+          <div
+            className="relative max-w-4xl w-full max-h-[90vh] mx-4 flex items-center justify-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Previous Button */}
+            <button
+              onClick={handlePrev}
+              className="absolute left-0 top-1/2 transform -translate-y-1/2 bg-maroon text-white p-3 rounded-full hover:bg-red-700 transition"
+            >
+              <FaChevronLeft />
+            </button>
+
+            {/* Image */}
+            <img
+              src={featuredPhotos[selectedPhotoIndex]}
+              alt={`Featured ${selectedPhotoIndex + 1}`}
+              className="rounded-lg object-contain max-h-[90vh] w-full"
+            />
+
+            {/* Next Button */}
+            <button
+              onClick={handleNext}
+              className="absolute right-0 top-1/2 transform -translate-y-1/2 bg-maroon text-white p-3 rounded-full hover:bg-red-700 transition"
+            >
+              <FaChevronRight />
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 };

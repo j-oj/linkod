@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/supabaseClient";
 import ActionButton from "@/components/ui/actionbutton";
-import Navbar from "@/components/navbar.jsx";
+import Navbar from "@/components/navbar";
 import { useLoading } from "@/context/LoadingContext";
 
 const Login = () => {
