@@ -16,6 +16,7 @@ const OrgPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const [photos, setPhotos] = useState([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -46,6 +47,29 @@ const OrgPage = () => {
         }
 
         setOrg(orgData);
+
+        // Fetch featured photos from the "featured-photos" bucket
+        try {
+          const { data: photoFiles, error: photoError } = await supabase.storage
+            .from("featured-photos")
+            .list(`${orgData.org_id}/`, { limit: 100 });
+
+          if (photoError) {
+            console.error("Failed to fetch photo list:", photoError);
+          } else {
+            const urls = await Promise.all(
+              photoFiles.map(async (file) => {
+                const { data: urlData } = await supabase.storage
+                  .from("featured-photos")
+                  .getPublicUrl(`${orgData.org_id}/${file.name}`);
+                return urlData.publicUrl;
+              })
+            );
+            setPhotos(urls);
+          }
+        } catch (err) {
+          console.error("Error loading photos:", err);
+        }
 
         // Fetch tags (from org_tag table, referencing tag table)
         const { data: tagData, error: tagError } = await supabase
@@ -126,7 +150,7 @@ const OrgPage = () => {
     return (
       <>
         <Navbar />
-        <div className="flex justify-center items-center h-64">
+        <div className="flex justify-center items-center h-64 mt-16">
           <div className="text-xl">Organization not found</div>
         </div>
       </>
@@ -135,11 +159,11 @@ const OrgPage = () => {
   return (
     <>
       <Navbar />
-      <div className="max-w-5xl mx-auto mt-8 px-6">
-        <div className="bg-gray-100 p-6 rounded-md shadow space-y-6">
+      <div className="max-w-5xl mx-auto mt-30 px-6">
+        <div className="bg-white p-6 rounded-lg shadow-lg space-y-8">
           {/* Header */}
-          <div className="flex items-center gap-4">
-            <div className="w-20 h-20 rounded-full overflow-hidden border">
+          <div className="flex items-center gap-6">
+            <div className="w-24 h-24 rounded-full overflow-hidden border border-gray-300">
               <img
                 src={org.org_logo || DEFAULT_LOGO_URL}
                 alt="Org Logo"
@@ -147,7 +171,9 @@ const OrgPage = () => {
               />
             </div>
             <div className="flex-1">
-              <h1 className="text-2xl font-bold">{org.org_name}</h1>
+              <h1 className="text-3xl font-semibold text-gray-800">
+                {org.org_name}
+              </h1>
               <p className="text-gray-600">
                 Led by:{" "}
                 <span className="font-medium">{org.president || "N/A"}</span>
@@ -162,7 +188,7 @@ const OrgPage = () => {
                 Email:{" "}
                 <a
                   href={`mailto:${org.org_email}`}
-                  className="text-blue-500 underline"
+                  className="text-blue-600 underline"
                 >
                   {org.org_email || "N/A"}
                 </a>
@@ -173,7 +199,7 @@ const OrgPage = () => {
           {/* Tags */}
           {tags.length > 0 && (
             <div>
-              <h2 className="text-xl font-semibold mb-2">Tags</h2>
+              <h2 className="text-xl font-semibold text-gray-700 mb-2">Tags</h2>
               <div className="flex flex-wrap gap-2">
                 {tags.map((tag, idx) => (
                   <span
@@ -189,7 +215,7 @@ const OrgPage = () => {
 
           {/* About */}
           <div>
-            <h2 className="text-xl font-semibold mb-2">About</h2>
+            <h2 className="text-xl font-semibold text-gray-700 mb-2">About</h2>
             <p className="text-gray-700 whitespace-pre-line">
               {org.about || "No description available."}
             </p>
@@ -198,40 +224,42 @@ const OrgPage = () => {
           {/* Social Media */}
           {org.socmed_links && Object.keys(org.socmed_links).length > 0 && (
             <div>
-              <h2 className="text-xl font-semibold mb-2">Social Media</h2>
+              <h2 className="text-xl font-semibold text-gray-700 mb-2">
+                Social Media
+              </h2>
               <div className="space-y-2">
                 {org.socmed_links.facebook && (
-                  <div className="flex items-center gap-2">
-                    <FaFacebook className="text-blue-600" />
+                  <div className="flex items-center gap-3 text-blue-600">
+                    <FaFacebook />
                     <a
                       href={org.socmed_links.facebook}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-blue-500 underline"
+                      className="underline"
                     >
                       Facebook
                     </a>
                   </div>
                 )}
                 {org.socmed_links.instagram && (
-                  <div className="flex items-center gap-2">
-                    <FaInstagram className="text-pink-600" />
+                  <div className="flex items-center gap-3 text-pink-600">
+                    <FaInstagram />
                     <a
                       href={org.socmed_links.instagram}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-pink-500 underline"
+                      className="underline"
                     >
                       Instagram
                     </a>
                   </div>
                 )}
                 {org.socmed_links.email && (
-                  <div className="flex items-center gap-2">
-                    <FaEnvelope className="text-yellow-600" />
+                  <div className="flex items-center gap-3 text-yellow-600">
+                    <FaEnvelope />
                     <a
                       href={`mailto:${org.socmed_links.email}`}
-                      className="text-yellow-500 underline"
+                      className="underline"
                     >
                       {org.socmed_links.email}
                     </a>
@@ -244,7 +272,9 @@ const OrgPage = () => {
           {/* Applications */}
           {(org.socmed_links?.form || org.socmed_links?.dates) && (
             <div>
-              <h2 className="text-xl font-semibold mb-2">Applications</h2>
+              <h2 className="text-xl font-semibold text-gray-700 mb-2">
+                Applications
+              </h2>
               {org.socmed_links.form && (
                 <p className="mb-1">
                   <span className="font-medium">Form:</span>{" "}
@@ -252,7 +282,7 @@ const OrgPage = () => {
                     href={org.socmed_links.form}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-500 underline"
+                    className="text-blue-600 underline"
                   >
                     {org.socmed_links.form}
                   </a>
@@ -267,9 +297,12 @@ const OrgPage = () => {
             </div>
           )}
 
+          {/* Optional alternative fields */}
           {(org.application_form || org.application_dates) && (
             <div>
-              <h2 className="text-xl font-semibold mb-2">Applications</h2>
+              <h2 className="text-xl font-semibold text-gray-700 mb-2">
+                Applications
+              </h2>
               {org.application_form && (
                 <p className="mb-1">
                   <span className="font-medium">Form:</span>{" "}
@@ -277,7 +310,7 @@ const OrgPage = () => {
                     href={org.application_form}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-500 underline"
+                    className="text-blue-600 underline"
                   >
                     {org.application_form}
                   </a>
@@ -294,17 +327,33 @@ const OrgPage = () => {
 
           {/* Org Photo */}
           <div>
-            <h2 className="text-xl font-semibold mb-2">Featured Photos</h2>
-            <div className="w-full h-32 border border-dashed flex items-center justify-center rounded bg-white">
-              <span className="text-gray-400">Photo Placeholder</span>
-            </div>
+            <h2 className="text-xl font-semibold text-gray-700 mb-2">
+              Featured Photos
+            </h2>
+            {photos.length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                {photos.map((url, index) => (
+                  <img
+                    key={index}
+                    src={url}
+                    alt={`Featured ${index + 1}`}
+                    className="w-full h-40 object-cover rounded-md shadow"
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="w-full h-48 border-2 border-dashed border-gray-300 bg-gray-100 flex items-center justify-center rounded-md">
+                <span className="text-gray-400">No featured photos yet.</span>
+              </div>
+            )}
           </div>
 
+          {/* Admin Edit Button */}
           {isAdmin && (
-            <div className="mt-6">
+            <div className="text-center pt-4">
               <button
                 onClick={handleEdit}
-                className="bg-maroon text-white px-4 py-2 rounded-lg hover:bg-red-800"
+                className="bg-maroon text-white px-6 py-2 rounded-lg hover:bg-red-800 transition"
               >
                 Edit Organization
               </button>

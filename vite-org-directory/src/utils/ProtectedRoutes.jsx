@@ -54,16 +54,6 @@ const ProtectedRoutes = ({ allowedRole }) => {
     );
   }
 
-  // Keep authenticated users on their own dashboard
-  if (!isAllowed) {
-    if (currentRole === "superadmin") {
-      return <Navigate to="/superadmin-dashboard" replace />;
-    }
-    if (currentRole === "admin") {
-      return <Navigate to="/" replace />;
-    }
-  }
-
   console.log("Current role:", currentRole);
   console.log("Allowed role:", allowedRole);
 

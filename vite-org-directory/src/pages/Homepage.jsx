@@ -3,18 +3,24 @@ import { Link } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 import Navbar from "../components/navbar";
 import Loading from "../components/Loading";
-import { FaFilter, FaChevronDown, FaCrown } from "react-icons/fa";
+import ActionButton from "../components/ui/actionbutton";
+import { FaCrown, FaSearch, FaTimes, FaChevronDown } from "react-icons/fa";
+import {
+  Listbox,
+  ListboxButton,
+  ListboxOption,
+  ListboxOptions,
+} from "@headlessui/react";
 
 const Homepage = () => {
   const [orgs, setOrgs] = useState([]);
   const [filteredOrgs, setFilteredOrgs] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedTags, setSelectedTags] = useState([]);
-  const [allTags, setAllTags] = useState([]);
   const [userRole, setUserRole] = useState("guest");
   const [adminOrgSlug, setAdminOrgSlug] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState("");
   const [user, setUser] = useState(null);
 
   useEffect(() => {
@@ -119,19 +125,31 @@ const Homepage = () => {
       setLoading(true);
       try {
         console.log("Fetching organizations...");
-        const { data, error } = await supabase
-          .from("organization")
-          .select("*, org_tag(tag:tag_id (tag_name))")
-          .order("org_name", { ascending: true });
+        const [
+          { data: orgData, error: orgError },
+          { data: catData, error: catError },
+        ] = await Promise.all([
+          supabase
+            .from("organization")
+            .select(
+              "*, category(category_name), org_tag(tag:tag_id (tag_name))"
+            )
+            .order("org_name", { ascending: true }),
 
-        if (error) throw error;
+          supabase
+            .from("category")
+            .select("*")
+            .order("category_name", { ascending: true }),
+        ]);
 
-        console.log("Organizations fetched:", data?.length || 0);
-        setOrgs(data || []);
-        setFilteredOrgs(data || []);
-        extractTags(data || []);
+        if (orgError) throw orgError;
+        if (catError) throw catError;
+
+        setOrgs(orgData || []);
+        setFilteredOrgs(orgData || []);
+        setCategories(catData || []);
       } catch (error) {
-        console.error("Error fetching orgs:", error);
+        console.error("Error fetching orgs or categories:", error);
         setOrgs([]);
         setFilteredOrgs([]);
       } finally {
@@ -149,50 +167,27 @@ const Homepage = () => {
     console.log("Organization count:", orgs.length);
   }, [adminOrgSlug, userRole, orgs]);
 
-  const extractTags = (orgsList) => {
-    const tagSet = new Set();
-    orgsList.forEach((org) => {
-      const tags = org.org_tag?.map((t) => t.tag?.tag_name) || [];
-      tags.forEach((tag) => tag && tagSet.add(tag.trim()));
-    });
-    setAllTags([...tagSet].sort());
-  };
-
   const handleSearch = (e) => {
     const term = e.target.value;
     setSearchTerm(term);
-    filterOrgs(term, selectedTags);
+    filterOrgs(term, selectedCategory);
   };
 
-  const handleTagFilter = (tag) => {
-    let updatedTags;
-
-    if (selectedTags.includes(tag)) {
-      updatedTags = selectedTags.filter((t) => t !== tag);
-    } else {
-      updatedTags = [...selectedTags, tag];
-    }
-
-    setSelectedTags(updatedTags);
-    filterOrgs(searchTerm, updatedTags);
-    setIsDropdownOpen(false);
+  const handleCategoryChange = (e) => {
+    const category = e.target.value;
+    setSelectedCategory(category);
+    filterOrgs(searchTerm, category);
   };
 
-  const clearFilter = () => {
-    setSelectedTags([]);
-    filterOrgs(searchTerm, []);
-  };
-
-  const filterOrgs = (term, tags) => {
+  const filterOrgs = (term = searchTerm, category = selectedCategory) => {
     const filtered = orgs.filter((org) => {
-      const matchesSearch = org.org_name
-        .toLowerCase()
-        .includes(term.toLowerCase());
+      const nameMatch = org.org_name.toLowerCase().includes(term.toLowerCase());
+      const tags = org.org_tag?.map((t) => t.tag?.tag_name.toLowerCase()) || [];
+      const tagMatch = tags.some((tag) => tag.includes(term.toLowerCase()));
+      const categoryMatch =
+        !category || org.category?.category_name === category;
 
-      const orgTags = org.org_tag?.map((t) => t.tag?.tag_name) || [];
-      const matchesAllTags = tags.every((tag) => orgTags.includes(tag));
-
-      return matchesSearch && matchesAllTags;
+      return (nameMatch || tagMatch) && categoryMatch;
     });
 
     setFilteredOrgs(filtered);
@@ -219,125 +214,189 @@ const Homepage = () => {
   return (
     <>
       <Navbar />
-      <div className="p-4 max-w-6xl mx-auto">
-        {/* Search Bar */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-4">
-          <div className="relative flex-grow">
+      {/* Hero Section */}
+      <section className="bg-gradient-to-b from-white to-gray-50 dark:from-gray-900 dark:to-gray-800 py-20 mb-12 mt-12">
+        <div className="max-w-4xl mx-auto px-4 text-center">
+          <h1 className="text-4xl sm:text-5xl font-bold text-gray-800 dark:text-white mb-4">
+            Discover <span className="text-maroon">Organizations</span>
+          </h1>
+          <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+            Explore, connect, and engage with student organizations.
+          </p>
+        </div>
+      </section>
+
+      {/* Search & Filter Bar */}
+      <div className="max-w-6xl mx-auto px-4 mb-12 flex justify-center">
+        <div className="bg-white dark:bg-gray-900 shadow-md border border-gray-200 dark:border-gray-700 rounded-xl p-6 flex flex-col sm:flex-row items-center gap-4">
+          <div className="relative w-full sm:w-96">
             <input
               type="text"
               placeholder="Search organizations..."
               value={searchTerm}
               onChange={handleSearch}
-              className="w-full border border-gray-300 rounded-full py-2 px-4 pr-10 focus:outline-none focus:ring-2 focus:ring-maroon"
+              className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 rounded-lg py-2.5 px-4 pl-10 focus:outline-none focus:ring-2 focus:ring-maroon text-gray-800 dark:text-white"
             />
-            <FaFilter className="absolute right-4 top-2.5 text-gray-400" />
-          </div>
-        </div>
-
-        {/* Tag Dropdown */}
-        {allTags.length > 0 && (
-          <div className="mb-4">
-            <div className="relative">
-              <button
-                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="w-full sm:w-64 flex justify-between items-center px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-maroon"
-              >
-                <span className="text-gray-700">
-                  {selectedTags.length > 0
-                    ? "Filter by Tag"
-                    : "Select categories to filter"}
-                </span>
-                <FaChevronDown
-                  className={`ml-2 transition-transform ${
-                    isDropdownOpen ? "rotate-180" : ""
-                  }`}
-                />
-              </button>
-
-              {isDropdownOpen && (
-                <div className="absolute z-10 mt-1 w-full sm:w-64 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                  {allTags.map((tag) => (
-                    <div
-                      key={tag}
-                      onClick={() => handleTagFilter(tag)}
-                      className={`px-4 py-2 cursor-pointer hover:bg-gray-100 ${
-                        selectedTags.includes(tag)
-                          ? "bg-gray-200 font-semibold"
-                          : ""
-                      }`}
-                    >
-                      {tag}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Selected Tags */}
-        {selectedTags.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-4">
-            {selectedTags.map((tag) => (
-              <span
-                key={tag}
-                className="flex items-center bg-maroon text-white text-sm px-3 py-1 rounded-full"
-              >
-                {tag}
-                <button
-                  onClick={() => handleTagFilter(tag)}
-                  className="ml-2 text-white hover:text-gray-300"
-                >
-                  ×
-                </button>
-              </span>
-            ))}
-            <button
-              onClick={clearFilter}
-              className="text-sm text-gray-500 underline ml-2"
+            <div
+              className="absolute flex left-3 top-4 text-gray-400 cursor-pointer"
+              onClick={() =>
+                document.querySelector('input[type="text"]').focus()
+              }
             >
-              Clear all
-            </button>
+              <FaSearch />
+            </div>
+            {searchTerm && (
+              <div
+                className="absolute right-3 top-4 text-gray-400 hover:text-gray-600 cursor-pointer"
+                onClick={() => {
+                  setSearchTerm("");
+                  filterOrgs("", selectedCategory);
+                }}
+              >
+                <FaTimes />
+              </div>
+            )}
           </div>
-        )}
 
-        {/* Org Cards */}
-        {filteredOrgs.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-            {filteredOrgs.map((org) => {
-              const isAdmin = isAdminOrg(org.slug);
-              return (
-                <Link
-                  key={org.id || org.org_id}
-                  to={`/orgs/${org.slug}`}
-                  className={`relative bg-white rounded-xl shadow hover:shadow-lg transition-all duration-200 p-4 flex flex-col items-center text-center dark:bg-gray-800 dark:text-white dark:hover:shadow-lg ${
-                    isAdmin ? "ring-4 ring-yellow-400" : ""
-                  }`}
-                >
-                  {isAdmin && (
-                    <div
-                      className="absolute top-2 right-2 bg-yellow-400 text-maroon rounded-full p-1"
-                      title="You are an admin of this organization"
+          <div className="relative w-full sm:w-60">
+            <Listbox
+              value={selectedCategory}
+              onChange={(val) => {
+                setSelectedCategory(val);
+                filterOrgs(searchTerm, val);
+              }}
+            >
+              <div className="relative w-full sm:w-60">
+                <ListboxButton className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-white rounded-lg py-2.5 px-4 pr-10 text-left focus:outline-none focus:ring-2 focus:ring-maroon">
+                  {selectedCategory || "All Categories"}
+                  <span className="absolute inset-y-0 right-4 flex items-center pointer-events-none">
+                    <FaChevronDown className="text-gray-400" />
+                  </span>
+                </ListboxButton>
+                <ListboxOptions className="absolute z-10 mt-1 w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-60 overflow-auto text-sm">
+                  <ListboxOption
+                    value=""
+                    className={({ active }) =>
+                      `cursor-pointer select-none relative px-4 py-2 ${
+                        active
+                          ? "bg-red-700 text-white"
+                          : "text-gray-800 dark:text-white"
+                      }`
+                    }
+                  >
+                    All Categories
+                  </ListboxOption>
+                  {categories.map((cat) => (
+                    <ListboxOption
+                      key={cat.category_id}
+                      value={cat.category_name}
+                      className={({ active }) =>
+                        `cursor-pointer select-none relative px-4 py-2 ${
+                          active
+                            ? "bg-red-700 text-white"
+                            : "text-gray-800 dark:text-white"
+                        }`
+                      }
                     >
-                      <FaCrown size={14} />
-                    </div>
-                  )}
-                  <img
-                    src={org.org_logo || "https://placehold.co/600x400"}
-                    alt={org.org_name}
-                    className="w-24 h-24 object-contain mb-3"
-                  />
-                  <h2 className="font-semibold text-sm">{org.org_name}</h2>
-                </Link>
-              );
-            })}
+                      {cat.category_name}
+                    </ListboxOption>
+                  ))}
+                </ListboxOptions>
+              </div>
+            </Listbox>
           </div>
+
+          {(searchTerm || selectedCategory) && (
+            <button
+              onClick={() => {
+                setSearchTerm("");
+                setSelectedCategory("");
+                filterOrgs("", "");
+              }}
+              className="px-4 py-2 bg-maroon/10 hover:bg-maroon/20 text-maroon rounded-lg transition-colors"
+            >
+              Clear Filters
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Organization Cards */}
+      <div className="px-4 max-w-6xl mx-auto mb-16">
+        {filteredOrgs.length > 0 ? (
+          <>
+            <div className="mb-4 text-gray-500 dark:text-gray-400">
+              Showing {filteredOrgs.length} organization
+              {filteredOrgs.length !== 1 ? "s" : ""}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {filteredOrgs.map((org) => {
+                const isAdmin = isAdminOrg(org.slug);
+                return (
+                  <Link
+                    key={org.id || org.org_id}
+                    to={`/orgs/${org.slug}`}
+                    className={`relative bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-all duration-300 rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-700 group ${
+                      isAdmin ? "ring-4 ring-yellow-400 " : ""
+                    }`}
+                  >
+                    <div className="h-1.5 bg-maroon"></div>
+                    <div className="p-5">
+                      {isAdmin && (
+                        <div
+                          className="absolute top-2 right-2 bg-yellow-400 text-maroon rounded-full p-1.5"
+                          title="You are an admin of this organization"
+                        >
+                          <FaCrown size={14} />
+                        </div>
+                      )}
+                      <div className="flex flex-col items-center">
+                        <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-700 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
+                          <img
+                            src={org.org_logo || "https://placehold.co/100x100"}
+                            alt={org.org_name}
+                            className="w-16 h-16 object-cover"
+                          />
+                        </div>
+                        <h2 className="font-medium text-base text-center text-gray-800 dark:text-white">
+                          {org.org_name}
+                        </h2>
+                        <span className="mt-2 inline-block px-3 py-1 bg-gray-100 dark:bg-gray-700 text-xs rounded-full text-gray-600 dark:text-gray-300">
+                          {org.category?.category_name}
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </>
         ) : (
-          <div className="text-center text-gray-500 mt-10">
-            No organizations found.{" "}
-            {orgs.length > 0 ? "Try adjusting your filters." : ""}
+          <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl shadow-sm">
+            <div className="text-5xl mb-3">🔍</div>
+            <h3 className="text-xl font-medium text-gray-800 dark:text-white mb-2">
+              No organizations found
+            </h3>
+            <p className="text-gray-500 dark:text-gray-400">
+              {orgs.length > 0
+                ? "Try adjusting your filters."
+                : "No organizations are available at the moment."}
+            </p>
+            {(searchTerm || selectedCategory) && (
+              <button
+                onClick={() => {
+                  setSearchTerm("");
+                  setSelectedCategory("");
+                  filterOrgs("", "");
+                }}
+                className="mt-4 px-4 py-2 bg-maroon hover:bg-maroon/90 text-white rounded-lg transition-colors"
+              >
+                Clear Filters
+              </button>
+            )}
           </div>
         )}
+        <ActionButton type="top" />
       </div>
     </>
   );
