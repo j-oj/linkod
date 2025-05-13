@@ -1,14 +1,13 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/supabaseClient";
-//import { useNavigate } from "react-router-dom";
-//import Navbar from "../components/navbar.jsx";
 import Select from "react-select";
 
 const CreateAdmin = () => {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [orgs, setOrgs] = useState([]);
-  const [selectedOrg, setSelectedOrg] = useState("");
+  const [selectedOrg, setSelectedOrg] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     async function fetchOrgs() {
@@ -32,35 +31,50 @@ const CreateAdmin = () => {
       return;
     }
 
-    try {
-      // Invite the user by email
-      const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(email.trim().toLowerCase(), {
-        data: {
-          full_name: name.trim(),
-        },
-      });
+    setLoading(true);
 
-      
-      if (inviteError) {
-        console.error("Failed to send invite:", inviteError);
-        alert("Failed to send invite. Please try again.");
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const response = await fetch(
+        "https://ruigijbnxjgbndetnvhd.supabase.co/functions/v1/invite-admin",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({
+            email: email.trim().toLowerCase(),
+            full_name: name.trim(),
+            org_id: selectedOrg,
+          }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        alert("Failed to send invite: " + result.error);
+        setLoading(false);
         return;
       }
 
       alert("Invite sent successfully! The user will receive an email to sign up.");
-
-      // Clear the form
       setEmail("");
       setName("");
-      setSelectedOrg("");
-    } catch (error) {
-      console.error("Error inviting user:", error);
+      setSelectedOrg(null);
+    } catch (err) {
+      console.error("Error inviting user:", err);
       alert("An error occurred. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-
     <div className="max-w-md mx-auto mt-10 p-6 bg-white shadow-xl rounded-2xl">
       <h2 className="text-xl font-bold mb-4">Invite New Admin</h2>
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -93,16 +107,16 @@ const CreateAdmin = () => {
           <label htmlFor="org" className="block font-medium mb-1">
             Organization
           </label>
-        <Select
+          <Select
             options={orgs.map((org) => ({
-                value: org.org_id,
-                label: org.org_name,
+              value: org.org_id,
+              label: org.org_name,
             }))}
             value={
-                orgs
-                    .map((org) => ({
-                        value: org.org_id,
-                        label: org.org_name,
+              orgs
+                .map((org) => ({
+                  value: org.org_id,
+                  label: org.org_name,
                 }))
                 .find((option) => option.value === selectedOrg) || null
             }
@@ -111,13 +125,14 @@ const CreateAdmin = () => {
             classNamePrefix="react-select"
             placeholder="Select an organization"
             isClearable
-        />
+          />
         </div>
         <button
           type="submit"
-          className="w-full bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          disabled={loading}
+          className="w-full bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
         >
-          Send Invite
+          {loading ? "Sending..." : "Send Invite"}
         </button>
       </form>
     </div>
