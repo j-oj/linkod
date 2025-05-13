@@ -26,11 +26,11 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/auth/callback" element={<GoogleCallback />} />
           <Route path="/orgs/:slug" element={<OrgPage />} />
+          <Route path="/accept-invitation" element={<AcceptInvitation />} />
 
           {/* Admin Protected Routes */}
           <Route element={<ProtectedRoutes allowedRole="admin" />}>
             <Route path="/edit-org/:slug" element={<EditOrg />} />
-            <Route path="/accept-invitation" element={<AcceptInvitation />} />
           </Route>
 
           {/* Superadmin Protected Routes */}
