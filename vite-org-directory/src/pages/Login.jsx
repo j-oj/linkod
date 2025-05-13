@@ -2,10 +2,10 @@ import { MdAlternateEmail } from "react-icons/md";
 import { FaFingerprint, FaRegEye, FaRegEyeSlash } from "react-icons/fa";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../supabaseClient";
-import ActionButton from "../components/ui/actionbutton";
-import Navbar from "../components/navbar";
-import { useLoading } from "../context/LoadingContext";
+import { supabase } from "@/supabaseClient";
+import ActionButton from "@/components/ui/actionbutton";
+import Navbar from "@/components/navbar";
+import { useLoading } from "@/context/LoadingContext";
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);

@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { FaRegTrashAlt, FaUserTimes, FaEdit, FaEye } from "react-icons/fa";
-import Navbar from "../components/navbar";
-import { supabase } from "../supabaseClient";
-import toast from "react-hot-toast";
-import SuccessToast from "../components/successToast";
-import ErrorToast from "../components/errorToast";
+import Navbar from "@/components/navbar.jsx";
+import { supabase } from "@/supabaseClient";
+import { toast } from "react-hot-toast";
+import SuccessToast from "@/components/successToast";
+import ErrorToast from "@/components/errorToast";
 import { DotPulse } from "ldrs/react";
 import "ldrs/react/DotPulse.css";
 import ConfirmAction from "../components/ui/confirmAction";

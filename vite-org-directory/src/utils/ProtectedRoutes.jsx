@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
-import { supabase } from "../supabaseClient";
-import Loading from "../components/Loading";
+import { supabase } from "@/supabaseClient";
+import Loading from "@/components/loading.jsx";
 
 const ProtectedRoutes = ({ allowedRole }) => {
   const [isAllowed, setIsAllowed] = useState(null);

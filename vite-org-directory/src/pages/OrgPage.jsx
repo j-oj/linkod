@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { supabase } from "../supabaseClient";
-import Navbar from "../components/Navbar";
-import Loading from "../components/Loading";
+import { supabase } from "@/supabaseClient";
+import Navbar from "@/components/navbar.jsx";
+import Loading from "@/components/loading.jsx";
 import {
   FaFacebook,
   FaTwitter,
@@ -12,6 +12,7 @@ import {
   FaChevronLeft,
   FaChevronRight,
 } from "react-icons/fa";
+
 
 const DEFAULT_LOGO_URL = "https://placehold.co/600x400";
 
