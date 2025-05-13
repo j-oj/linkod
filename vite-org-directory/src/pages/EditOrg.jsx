@@ -11,6 +11,8 @@ import {
   FaInstagram,
   FaLinkedin,
   FaGlobe,
+  FaImage,
+  FaTrash,
 } from "react-icons/fa6";
 
 const EditOrg = () => {
@@ -37,6 +39,9 @@ const EditOrg = () => {
   const [existingPhotos, setExistingPhotos] = useState([]);
   const [newPhotos, setNewPhotos] = useState([]);
   const [photoPreviews, setPhotoPreviews] = useState([]);
+  const [featuredPhotos, setFeaturedPhotos] = useState([]);
+  const [featuredPhotoPreviews, setFeaturedPhotoPreviews] = useState([]);
+  const MAX_FEATURED_PHOTOS = 3;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -169,11 +174,49 @@ const EditOrg = () => {
   };
 
   const handleFeaturedPhotosChange = (e) => {
-    const files = Array.from(e.target.files);
-    setNewPhotos(files);
+    if (!e.target.files || e.target.files.length === 0) return;
 
+    // Calculate how many more photos we can add based on the maximum allowed
+    const remainingSlots =
+      MAX_FEATURED_PHOTOS - existingPhotos.length - photoPreviews.length;
+
+    // Take only as many files as we have remaining slots
+    const files = Array.from(e.target.files).slice(0, remainingSlots);
+
+    // If we already have some selected files, combine them
+    setNewPhotos((prev) => [...prev, ...files]);
+
+    // Create previews for the newly selected files
     const previews = files.map((file) => URL.createObjectURL(file));
-    setPhotoPreviews(previews);
+    setPhotoPreviews((prev) => [...prev, ...previews]);
+
+    // Alert user if some files were ignored due to the limit
+    if (e.target.files.length > remainingSlots) {
+      alert(
+        `Only ${remainingSlots} more photo${
+          remainingSlots !== 1 ? "s" : ""
+        } can be added. The first ${remainingSlots} photo${
+          remainingSlots !== 1 ? "s were" : " was"
+        } selected.`
+      );
+    }
+  };
+
+  // Also update the photo removal functionality to properly handle the arrays:
+
+  const removeNewPhoto = (index) => {
+    // Release the object URL to avoid memory leaks
+    URL.revokeObjectURL(photoPreviews[index]);
+
+    // Remove the photo from both arrays
+    const newPreviews = [...photoPreviews];
+    const newPhotosArray = [...newPhotos];
+
+    newPreviews.splice(index, 1);
+    newPhotosArray.splice(index, 1);
+
+    setPhotoPreviews(newPreviews);
+    setNewPhotos(newPhotosArray);
   };
 
   const handleDeletePhoto = async (url) => {
@@ -198,6 +241,7 @@ const EditOrg = () => {
     }
   };
 
+  // Update the handleSubmit function to fix the file uploading issue
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -239,15 +283,27 @@ const EditOrg = () => {
         }
       }
 
+      // Upload new featured photos with sequential numbering
       if (newPhotos.length > 0) {
-        for (const photo of newPhotos) {
+        // Get current count of existing photos to determine starting index
+        const startingPhotoIndex = existingPhotos.length + 1;
+
+        // Process each new photo
+        for (let i = 0; i < newPhotos.length; i++) {
+          const photo = newPhotos[i];
           const ext = photo.name.split(".").pop();
-          const filename = `${slug}-featured.${ext}`;
+          // Simple sequential numbering (1, 2, 3, etc.)
+          const photoNumber = startingPhotoIndex + i;
+          const filename = `${slug}-featured-${photoNumber}.${ext}`;
           const path = `featured/${filename}`;
 
+          // Use upsert: true to allow replacing existing files if they have the same name
           const { error: uploadError } = await supabase.storage
             .from("featured-photos")
-            .upload(path, photo);
+            .upload(path, photo, {
+              cacheControl: "3600",
+              upsert: true,
+            });
 
           if (uploadError) {
             throw new Error(
@@ -721,57 +777,85 @@ const EditOrg = () => {
                       </div>
                     ))}
                   </div>
-                  <div className="mb-6">
-                    <label className="block font-medium text-gray-700 mb-2">
-                      Featured Photos
-                    </label>
 
-                    {/* Existing Photos */}
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {existingPhotos.map((url, idx) => (
-                        <img
-                          key={idx}
-                          src={url}
-                          alt={`Featured ${idx}`}
-                          className="w-24 h-24 object-cover rounded"
-                        />
+                  {/* Featured Photos Section */}
+                  <div className="mt-8">
+                    <h3 className="font-medium text-gray-800 mb-4">
+                      Featured Photos{" "}
+                      <span className="text-sm text-gray-500">
+                        ({existingPhotos.length + photoPreviews.length}/
+                        {MAX_FEATURED_PHOTOS} max)
+                      </span>
+                    </h3>
+
+                    {/* Photo Preview Area */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                      {/* Existing Photos */}
+                      {existingPhotos.map((url, index) => (
+                        <div key={`existing-${index}`} className="relative">
+                          <img
+                            src={url}
+                            alt={`Featured photo ${index + 1}`}
+                            className="w-full h-40 object-cover rounded-lg border border-gray-200"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleDeletePhoto(url)}
+                            className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600 transition"
+                          >
+                            <FaTrash className="text-xs" />
+                          </button>
+                        </div>
                       ))}
-                    </div>
 
-                    {/* New Preview */}
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {photoPreviews.map((url, idx) => (
-                        <img
-                          key={idx}
-                          src={url}
-                          alt={`New Preview ${idx}`}
-                          className="w-24 h-24 object-cover border rounded"
-                        />
+                      {/* New Photo Previews */}
+                      {photoPreviews.map((url, index) => (
+                        <div key={`preview-${index}`} className="relative">
+                          <img
+                            src={url}
+                            alt={`New photo ${index + 1}`}
+                            className="w-full h-40 object-cover rounded-lg border border-gray-200"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              // You'll need to implement this function to remove from photoPreviews array
+                              const newPreviews = [...photoPreviews];
+                              newPreviews.splice(index, 1);
+                              setPhotoPreviews(newPreviews);
+                            }}
+                            className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600 transition"
+                          >
+                            <FaTrash className="text-xs" />
+                          </button>
+                        </div>
                       ))}
+
+                      {/* Add Photo Placeholder */}
+                      {existingPhotos.length + photoPreviews.length <
+                        MAX_FEATURED_PHOTOS && (
+                        <label className="border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center h-40 cursor-pointer hover:border-red-300 transition">
+                          <FaImage className="text-gray-400 text-2xl mb-2" />
+                          <span className="text-sm text-gray-500">
+                            Add Photos
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            onChange={handleFeaturedPhotosChange}
+                            className="hidden"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeNewPhoto(index)}
+                            className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600 transition"
+                          >
+                            <FaTrash className="text-xs" />
+                          </button>
+                        </label>
+                      )}
                     </div>
-
-                    <input
-                      type="file"
-                      multiple
-                      accept="image/*"
-                      onChange={handleFeaturedPhotosChange}
-                    />
-
-                    {existingPhotos.map((url, idx) => (
-                      <div key={idx} className="relative">
-                        <img
-                          src={url}
-                          className="w-24 h-24 object-cover rounded"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleDeletePhoto(url)}
-                          className="absolute top-0 right-0 bg-red-600 text-white rounded-full px-2 text-xs"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
                   </div>
                 </div>
 

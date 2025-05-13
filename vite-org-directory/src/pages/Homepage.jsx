@@ -204,9 +204,6 @@ const Homepage = () => {
     return (
       <>
         <Loading />
-        <div className="text-center mt-4 text-gray-500 text-sm">
-          Loading organizations...
-        </div>
       </>
     );
   }
