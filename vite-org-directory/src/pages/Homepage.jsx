@@ -211,20 +211,35 @@ const Homepage = () => {
   return (
     <>
       <Navbar />
+
       {/* Hero Section */}
-      <section className="bg-gradient-to-b from-white to-gray-50 dark:from-gray-900 dark:to-gray-800 py-20 mb-12 mt-12">
-        <div className="max-w-4xl mx-auto px-4 text-center">
-          <h1 className="text-4xl sm:text-5xl font-bold text-gray-800 dark:text-white mb-4">
-            Discover <span className="text-maroon">Organizations</span>
-          </h1>
-          <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-            Explore, connect, and engage with student organizations.
-          </p>
+      <section className="py-15">
+        <div
+          style={{
+            //linear-gradient(to right, rgba(13,128,211, 0.6), rgba(0,87,63,0.4)),
+            backgroundImage: "url('/upmin-hero-image.jpg')", // changed the gradient colors to blue and yellow 
+            backgroundSize: "cover",
+            backgroundRepeat: "no-repeat", 
+            backgroundPosition: "top", // change the position of the image to anchor the top
+            height: "50vh",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center", // center the text horizontally
+            justifyContent: "center", // centers the text vertically
+            zIndex: -1 // added z-index to place 
+          }}
+          className="relative"
+        >
+          <div className="text-center left-0 text-white mt-20 px-5 py-5 custom-text-shadow">
+            <h1 className="text-4xl font-bold text-mustard mb-2.5 lg:text-5xl"> Find your UP Mindanao community here! </h1>
+            <h2 className="text-2xl italic"> An online directory for student-led campus organizations. </h2> 
+            {/* changed text */}
+          </div>
         </div>
       </section>
 
       {/* Search & Filter Bar */}
-      <div className="max-w-6xl mx-auto px-4 mb-12 flex justify-center">
+      <div className="max-w-6xl mx-auto px-4 mb-12 z-15 -mt-24 flex justify-center"> {/* added a z-index to the search bar and an -mt to make it appear above the hero image */}
         <div className="bg-white dark:bg-gray-900 shadow-md border border-gray-200 dark:border-gray-700 rounded-xl p-6 flex flex-col sm:flex-row items-center gap-4">
           <div className="relative w-full sm:w-96">
             <input
@@ -395,6 +410,15 @@ const Homepage = () => {
         )}
         <ActionButton type="top" />
       </div>
+
+      {/* Footer */}
+      <footer className="bg-maroon dark:bg-maroon-900 text-white dark:text-gray-200 py-6">
+        <div className="max-w-6xl mx-auto px-4">
+          <p className="text-center">
+            &copy; {new Date().getFullYear()}. All rights reserved.
+          </p>
+        </div>
+      </footer>
     </>
   );
 };

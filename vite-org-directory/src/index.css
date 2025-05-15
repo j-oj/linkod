@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 @tailwind base;
@@ -114,10 +115,11 @@
 }
 
 /* Custom colors for Website */
+/* edited to follow up colors */
 @theme {
   --color-maroon: #7b1113;
-  --color-mustard: #ffad14;
-  --color-green: #00563f;
+  --color-mustard: #FFAD14;
+  --color-green: #00573F;
 }
 
 @layer base {
@@ -136,6 +138,16 @@
 }
 .react-select__menu {
   z-index: 10;
+}
+
+/* added Inter font family */
+body {
+  font-family: 'Inter', sans-serif;
+}
+
+/* custom-text-shadow for the hero section*/
+.custom-text-shadow {
+  text-shadow: 0px 2px 8px rgba(0, 0, 0, 0.9);
 }
 
 /* custom-datepicker.css */
