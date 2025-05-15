@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/supabaseClient";
 import { useNavigate } from "react-router-dom";
-import Navbar from "@/components/Navbar";
-import Loading from "@/components/Loading";
+import Navbar from "@/components/navbar";
+import Loading from "@/components/loading";
 import Select from "react-select";
 import {
   FaFacebook,
