@@ -16,20 +16,58 @@ const Login = () => {
   const navigate = useNavigate();
   const togglePasswordView = () => setShowPassword(!showPassword);
 
-  // Check for existing session on component mount
   useEffect(() => {
-    const checkSession = async () => {
-      console.log("Checking session...");
-      const { data } = await supabase.auth.getSession();
-      if (data.session) {
-        console.log("Existing session found:", data.session);
-        // User is already logged in, redirect based on role
-        redirectBasedOnRole(data.session.user.id);
+    const checkSessionAndLogAdmin = async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const session = sessionData.session;
+  
+      if (session) {
+        const userId = session.user.id;
+  
+        // Check if this user is an admin
+        const { data: adminData, error: adminError } = await supabase
+          .from("admin")
+          .select("admin_id")
+          .eq("admin_id", userId)
+          .single();
+  
+        if (!adminError && adminData) {
+          // Log last sign-in (optional)
+          const { data: userData, error: userError } = await supabase
+            .from("auth.users")
+            .select("last_sign_in_at")
+            .eq("id", userId)
+            .single();
+  
+          if (userError) {
+            console.error("Failed to fetch user last sign-in:", userError.message);
+          } else {
+            console.log("Last sign-in:", userData.last_sign_in_at);
+          }
+  
+          // Insert login record without checking time diff
+          const { error: insertError } = await supabase
+            .from("admin_login_record")
+            .insert({
+              admin_id: userId,
+              login_time: new Date(),
+            });
+  
+          if (insertError) {
+            console.error("Failed to insert admin login record:", insertError.message);
+          } else {
+            console.log("Admin login record inserted.");
+          }
+        }
+  
+        // Redirect after role check
+        redirectBasedOnRole(userId);
       }
     };
-
-    checkSession();
+  
+    checkSessionAndLogAdmin();
   }, [navigate]);
+  
 
   // Function to handle redirection based on user role
   const redirectBasedOnRole = async (userId) => {
