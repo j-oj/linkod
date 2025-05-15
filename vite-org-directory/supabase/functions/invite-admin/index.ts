@@ -24,11 +24,12 @@ serve(async (req: Request) => {
     })
   }
 
-  const { email, org_id } = await req.json()
+  const { email } = await req.json()
 
   // Validate input
-  if (!email || !org_id || typeof org_id !== 'number') {
-    return new Response(JSON.stringify({ error: 'Missing or invalid email/org_id' }), {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!email || !emailRegex.test(email)) {
+    return new Response(JSON.stringify({ error: 'Missing or invalid email' }), {
       status: 400,
       headers: {
         'Content-Type': 'application/json',
@@ -37,24 +38,22 @@ serve(async (req: Request) => {
     })
   }
 
-  console.log("Inviting user with:", { email, org_id })
+  console.log("Inviting user with email:", email)
 
   const supabaseAdmin = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
   )
 
-  // Important: "data" is saved to raw_user_meta_data
   const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
     data: {
-      org_id: String(org_id),  // Convert to string to avoid type casting issues
-      full_name: "Temp Name",
+      full_name: "Temp Name",  // Optional: remove or replace with actual name input later
     },
   })
 
   if (error) {
     console.error("Invite error:", error.message)
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: 'Failed to invite user. Please try again later.' }), {
       status: 400,
       headers: {
         'Content-Type': 'application/json',

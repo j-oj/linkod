@@ -31,6 +31,11 @@ export default function SAdminDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentAdminId, setCurrentAdminId] = useState(null);
 
+  // invite
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+
+
   useEffect(() => {
     fetchCurrentAdmin();
     fetchData();
@@ -48,7 +53,7 @@ export default function SAdminDashboard() {
         const { data, error } = await supabase
           .from("admin")
           .select("admin_id")
-          .eq("auth_id", session.user.id)
+          .eq("admin_id", session.user.id)
           .single();
 
         if (data) {
@@ -290,6 +295,19 @@ export default function SAdminDashboard() {
             onTabChange={setActiveTab}
           />
         </div>
+
+        {/* Add Invite Button */}
+        {activeTab === "Admins" && (
+          <div className="flex justify-end mb-4">
+            <button
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              onClick={() => setInviteModalOpen(true)}
+            >
+              Invite Admin
+            </button>
+          </div>
+        )}
+
         {/* Search Input */}
         <div className="bg-gray-100 p-4 rounded-md shadow-inner">
           <h2 className="text-lg font-semibold mb-3">
@@ -539,6 +557,83 @@ export default function SAdminDashboard() {
           />
         )}
       </div>
+
+
+      {/* Invite Admin Modal */}
+      {inviteModalOpen && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className="bg-white p-6 rounded shadow-lg w-full max-w-sm">
+            <h2 className="text-lg font-bold mb-4">Invite Admin</h2>
+            <input
+              type="email"
+              className="w-full border px-3 py-2 rounded mb-4"
+              placeholder="Enter admin's email"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+            />
+            <div className="flex justify-end space-x-2">
+              <button
+                className="px-4 py-2 bg-gray-300 rounded"
+                onClick={() => {
+                  setInviteModalOpen(false);
+                  setInviteEmail("");
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-4 py-2 bg-maroon text-white rounded hover:bg-red-700"
+                onClick={async () => {
+                  if (!inviteEmail) {
+                    toast.custom(<ErrorToast message="Please enter a valid email." />);
+                    return;
+                  }
+                
+                  try {
+                    // Get access token from Supabase
+                    const {
+                      data: { session },
+                      error: sessionError
+                    } = await supabase.auth.getSession();
+                
+                    if (sessionError || !session?.access_token) {
+                      throw new Error("Authentication token missing or invalid.");
+                    }
+                
+                    const accessToken = session.access_token;
+                
+                    const response = await fetch("https://ruigijbnxjgbndetnvhd.supabase.co/functions/v1/invite-admin", {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${accessToken}`
+                      },
+                      body: JSON.stringify({ email: inviteEmail }),
+                    });
+                
+                    const result = await response.json();
+                
+                    if (response.ok) {
+                      toast.custom(<SuccessToast message="Invite sent successfully!" />);
+                      setInviteModalOpen(false);
+                      setInviteEmail("");
+                    } else {
+                      throw new Error(result.message || "Failed to send invite.");
+                    }
+                  } catch (error) {
+                    console.error("Invite error:", error);
+                    toast.custom(<ErrorToast message={`Invite failed: ${error.message}`} />);
+                  }
+                }}
+                
+              >
+                Send Invite
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </>
   );
 }
