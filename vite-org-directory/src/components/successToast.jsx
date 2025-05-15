@@ -10,6 +10,7 @@ const SuccessToast = ({ message }) => (
       textAlign: "center",
       fontWeight: "500",
     }}
+    className="flex justify-center mt-30"
   >
     ✅ {message}
   </div>

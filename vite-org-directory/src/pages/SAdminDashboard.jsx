@@ -16,7 +16,7 @@ import ActionButton from "../components/ui/actionbutton";
 const TABS = ["Admin Login Record", "Admins", "Organizations"];
 
 export default function SAdminDashboard() {
-  const [activeTab, setActiveTab] = useState("Activity Log");
+  const [activeTab, setActiveTab] = useState("Admin Login Record");
   const [modalOpen, setModalOpen] = useState(false);
   const [actionType, setActionType] = useState("");
   const [selectedItem, setSelectedItem] = useState(null);
@@ -27,7 +27,7 @@ export default function SAdminDashboard() {
   // Data states
   const [organizations, setOrganizations] = useState([]);
   const [admins, setAdmins] = useState([]);
-  const [activityLogs, setActivityLogs] = useState([]);
+  const [loginRecords, setLoginRecords] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentAdminId, setCurrentAdminId] = useState(null);
 
@@ -97,24 +97,22 @@ export default function SAdminDashboard() {
       }
 
       if (activeTab === "Admin Login Record") {
-        // Simplified query to match actual database structure
-        const { data: logsData, error: logsError } = await supabase
-          .from("activity_log")
+        // Query admin_login_record table instead of activity_log
+        const { data: loginData, error: loginError } = await supabase
+          .from("admin_login_record")
           .select(
             `
-            activity_log_id,
+            login_id,
             admin_id,
-            org_id,
-            activity_content,
-            activity_timestamp,
-            admin (admin_id, admin_name, admin_email),
-            organization (org_id, org_name)
+            login_time,
+            admin (admin_id, admin_name, admin_email, org_id, organization:org_id(org_id, org_name))
           `
           )
-          .order("activity_timestamp", { ascending: false });
+          .order("login_time", { ascending: false });
 
-        if (logsError) throw logsError;
-        setActivityLogs(logsData || []);
+        if (loginError) throw loginError;
+        console.log("Admin login records:", loginData);
+        setLoginRecords(loginData || []);
       }
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -205,13 +203,8 @@ export default function SAdminDashboard() {
           throw new Error("Failed to remove admin.");
         }
 
-        // 3. Log the activity
-        await logActivity({
-          admin_id: currentAdminId,
-          org_id: selectedItem.org_id,
-          activity_content: `Removed admin: ${selectedItem.admin_name}`,
-          activity_type: "remove_admin",
-        });
+        // 3. Log the activity in admin_login_record (if needed)
+        // This would be a separate function
 
         // 4. Update local state
         setAdmins(
@@ -244,15 +237,17 @@ export default function SAdminDashboard() {
         .includes(searchQuery.toLowerCase())
   );
 
-  const filteredLogs = activityLogs.filter(
-    (log) =>
-      log.admin?.admin_name
+  const filteredLoginRecords = loginRecords.filter(
+    (record) =>
+      record.admin?.admin_name
         ?.toLowerCase()
         .includes(searchQuery.toLowerCase()) ||
-      log.organization?.org_name
+      record.admin?.admin_email
         ?.toLowerCase()
         .includes(searchQuery.toLowerCase()) ||
-      log.activity_content?.toLowerCase().includes(searchQuery.toLowerCase())
+      record.admin?.organization?.org_name
+        ?.toLowerCase()
+        .includes(searchQuery.toLowerCase())
   );
 
   const formatDate = (dateString) => {
@@ -297,7 +292,7 @@ export default function SAdminDashboard() {
               ? "Manage Organizations"
               : activeTab === "Admins"
               ? "Manage Admins"
-              : "Admin Activity Log"}
+              : "Admin Login Record"}
           </h2>
           <SearchBar
             value={searchQuery}
@@ -305,6 +300,8 @@ export default function SAdminDashboard() {
             placeholder={
               activeTab === "Admins"
                 ? "Search organization or admin"
+                : activeTab === "Admin Login Record"
+                ? "Search admin login records"
                 : "Search organization"
             }
           />
@@ -462,7 +459,7 @@ export default function SAdminDashboard() {
                   </tbody>
                 </table>
               )}
-              {activeTab === "Activity Log" && (
+              {activeTab === "Admin Login Record" && (
                 <table className={`min-w-full ${tableBaseClasses}`}>
                   <thead>
                     <tr>
@@ -478,34 +475,35 @@ export default function SAdminDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredLogs.length > 0 ? (
-                      filteredLogs.map((log) => (
+                    {filteredLoginRecords.length > 0 ? (
+                      filteredLoginRecords.map((record) => (
                         <tr
-                          key={log.activity_log_id}
+                          key={record.login_id}
                           className="border-t hover:bg-gray-50"
                         >
                           <td className="px-4 py-2 text-left">
-                            {log.admin?.admin_name || "Unknown"}
+                            {record.admin?.admin_name || "Unknown"}
                             <div className="text-xs text-gray-500">
-                              {log.admin?.admin_email || ""}
+                              {record.admin?.admin_email || ""}
                             </div>
                           </td>
                           <td className="px-4 py-2">
-                            {log.organization?.org_name || "Unknown"}
+                            {record.admin?.organization?.org_name || "Unknown"}
                           </td>
-                          <td className="px-4 py-2">{log.activity_content}</td>
                           <td className="px-4 py-2 text-center">
-                            {formatDate(log.activity_timestamp)}
+                            {record.login_time
+                              ? formatDate(record.login_time)
+                              : "N/A"}
                           </td>
                         </tr>
                       ))
                     ) : (
                       <tr>
                         <td
-                          colSpan="4"
+                          colSpan="3"
                           className="px-4 py-4 text-center text-gray-500"
                         >
-                          No activity logs found
+                          No login records found
                         </td>
                       </tr>
                     )}
