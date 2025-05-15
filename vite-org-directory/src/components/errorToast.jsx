@@ -10,6 +10,7 @@ const ErrorToast = ({ message }) => (
       textAlign: "center",
       fontWeight: "500",
     }}
+    className="mt-30"
   >
     ❌ {message}
   </div>
