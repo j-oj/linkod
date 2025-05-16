@@ -47,7 +47,7 @@ const ActionButton = ({ type = "home", scrollThreshold = 200 }) => {
     >
       <button
         onClick={handleClick}
-        className="w-12 h-12 rounded-full bg-maroon border-2 text-white hover:scale-110 shadow-md flex items-center justify-center transition duration-300 ease-in-out z-50"
+        className="w-12 h-12 rounded-full bg-maroon border-2 border-maroon dark:border-white text-white hover:scale-110 shadow-md flex items-center justify-center transition duration-300 ease-in-out z-50"
       >
         {type === "home" ? <FaHome size={18} /> : <FaArrowUp size={18} />}
       </button>

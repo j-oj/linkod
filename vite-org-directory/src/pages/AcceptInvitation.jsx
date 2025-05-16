@@ -22,9 +22,10 @@ const AcceptInvitation = () => {
     setLoading(true);
 
     try {
-      const { data: authResult, error: authError } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-      });
+      const { data: authResult, error: authError } =
+        await supabase.auth.signInWithOAuth({
+          provider: "google",
+        });
 
       if (authError) throw new Error(authError.message);
     } catch (err) {
@@ -95,7 +96,9 @@ const AcceptInvitation = () => {
         .eq("id", invite.id);
 
       // Set success message and redirect to login
-      setSuccessMessage(`You are now an admin of ${invite.org_name}. You will be redirected to the login page shortly.`);
+      setSuccessMessage(
+        `You are now an admin of ${invite.org_name}. You will be redirected to the login page shortly.`
+      );
       setTimeout(() => {
         navigate("/login");
       }, 5000); // Redirect after 5 seconds

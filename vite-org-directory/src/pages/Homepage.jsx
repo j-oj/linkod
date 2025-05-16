@@ -1,10 +1,17 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/supabaseClient";
 import Navbar from "@/components/navbar";
 import Loading from "@/components/loading";
 import ActionButton from "@/components/ui/actionbutton";
-import { FaCrown, FaSearch, FaTimes, FaChevronDown } from "react-icons/fa";
+import {
+  FaCrown,
+  FaSearch,
+  FaTimes,
+  FaChevronDown,
+  FaEye,
+  FaEyeSlash,
+} from "react-icons/fa";
 import {
   Listbox,
   ListboxButton,
@@ -22,6 +29,9 @@ const Homepage = () => {
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState("");
   const [user, setUser] = useState(null);
+  const [showCount, setShowCount] = useState(true);
+  const [observedElements, setObservedElements] = useState({});
+  const observerRef = useRef(null);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -160,6 +170,56 @@ const Homepage = () => {
     fetchOrgs();
   }, []);
 
+  // Set up Intersection Observer for scroll effects
+  useEffect(() => {
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("card-visible");
+            entry.target.classList.remove("card-hidden");
+          } else {
+            // Reset the animation when the card leaves the viewport
+            entry.target.classList.remove("card-visible");
+            entry.target.classList.add("card-hidden");
+          }
+        });
+      },
+      {
+        root: null,
+        rootMargin: "0px",
+        threshold: 0.15,
+      }
+    );
+
+    return () => {
+      // Clean up observer on component unmount
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, []);
+
+  // Observe organization cards when they're added or changed
+  useEffect(() => {
+    // Wait a bit to ensure DOM is updated before observing
+    const timer = setTimeout(() => {
+      const cards = document.querySelectorAll(".org-card");
+      cards.forEach((card, index) => {
+        // Add initial hidden class with staggered delay
+        card.classList.add("card-hidden");
+        card.style.transitionDelay = `${index * 50}ms`;
+
+        // Start observing this card if we have an observer
+        if (observerRef.current) {
+          observerRef.current.observe(card);
+        }
+      });
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [filteredOrgs]);
+
   // Debug useEffect to log state changes
   useEffect(() => {
     console.log("Current adminOrgSlug:", adminOrgSlug);
@@ -212,34 +272,53 @@ const Homepage = () => {
     <>
       <Navbar />
 
+      {/* Add CSS for scroll animations */}
+      <style jsx="true">{`
+        /* CSS for card scroll animations */
+        .card-hidden {
+          opacity: 0;
+          transform: translateY(30px);
+          transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+        }
+
+        .card-visible {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      `}</style>
+
       {/* Hero Section */}
       <section className="py-15">
         <div
           style={{
-            //linear-gradient(to right, rgba(13,128,211, 0.6), rgba(0,87,63,0.4)),
-            backgroundImage: "url('/upmin-hero-image.jpg')", // changed the gradient colors to blue and yellow 
+            backgroundImage: "url('/upmin-hero-image.jpg')",
             backgroundSize: "cover",
-            backgroundRepeat: "no-repeat", 
-            backgroundPosition: "top", // change the position of the image to anchor the top
+            backgroundRepeat: "no-repeat",
+            backgroundPosition: "top",
             height: "50vh",
             display: "flex",
             flexDirection: "column",
-            alignItems: "center", // center the text horizontally
-            justifyContent: "center", // centers the text vertically
-            zIndex: -1 // added z-index to place 
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: -1,
           }}
           className="relative"
         >
           <div className="text-center left-0 text-white mt-20 px-5 py-5 custom-text-shadow">
-            <h1 className="text-4xl font-bold text-mustard mb-2.5 lg:text-5xl"> Find your UP Mindanao community here! </h1>
-            <h2 className="text-2xl italic"> An online directory for student-led campus organizations. </h2> 
-            {/* changed text */}
+            <h1 className="text-4xl font-bold text-mustard mb-2.5 lg:text-5xl">
+              {" "}
+              Find your UP Mindanao community here!{" "}
+            </h1>
+            <h2 className="text-2xl italic">
+              {" "}
+              An online directory for student-led campus organizations.{" "}
+            </h2>
           </div>
         </div>
       </section>
 
       {/* Search & Filter Bar */}
-      <div className="max-w-6xl mx-auto px-4 mb-12 z-15 -mt-24 flex justify-center"> {/* added a z-index to the search bar and an -mt to make it appear above the hero image */}
+      <div className="max-w-6xl mx-auto px-4 mb-12 z-15 -mt-24 flex justify-center">
         <div className="bg-white dark:bg-gray-900 shadow-md border border-gray-200 dark:border-gray-700 rounded-xl p-6 flex flex-col sm:flex-row items-center gap-4">
           <div className="relative w-full sm:w-96">
             <input
@@ -325,7 +404,7 @@ const Homepage = () => {
                 setSelectedCategory("");
                 filterOrgs("", "");
               }}
-              className="px-4 py-2 bg-maroon/10 hover:bg-maroon/20 text-maroon rounded-lg transition-colors"
+              className="px-4 py-2 bg-maroon/10 hover:bg-maroon/20 text-maroon rounded-lg transition-colors dark:text-white dark:bg-maroon dark:hover:bg-red-700"
             >
               Clear Filters
             </button>
@@ -337,18 +416,35 @@ const Homepage = () => {
       <div className="px-4 max-w-6xl mx-auto mb-16">
         {filteredOrgs.length > 0 ? (
           <>
-            <div className="mb-4 text-gray-500 dark:text-gray-400">
-              Showing {filteredOrgs.length} organization
-              {filteredOrgs.length !== 1 ? "s" : ""}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-2 text-gray-800 dark:text-white">
+                <button
+                  onClick={() => setShowCount(!showCount)}
+                  className="text-maroon hover:text-red-800 focus:outline-none text-lg dark:text-gray-400 dark:hover:text-gray-300 transition-colors hover:cursor-pointer"
+                  title={showCount ? "Hide count" : "Show count"}
+                >
+                  {showCount ? <FaEyeSlash /> : <FaEye />}
+                </button>
+                {showCount && (
+                  <div
+                    className="text-gray-500 dark:text-gray-400 hover:cursor-pointer"
+                    onClick={() => setShowCount(!showCount)}
+                  >
+                    Showing {filteredOrgs.length} organization
+                    {filteredOrgs.length !== 1 ? "s" : ""}
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {filteredOrgs.map((org) => {
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredOrgs.map((org, index) => {
                 const isAdmin = isAdminOrg(org.slug);
                 return (
                   <Link
                     key={org.id || org.org_id}
                     to={`/orgs/${org.slug}`}
-                    className={`relative bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-all duration-300 rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-700 group ${
+                    className={`org-card relative bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-all duration-300 rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-700 group hover:scale-103 ${
                       isAdmin ? "ring-4 ring-yellow-400 " : ""
                     }`}
                   >
@@ -365,7 +461,10 @@ const Homepage = () => {
                       <div className="flex flex-col items-center">
                         <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-700 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
                           <img
-                            src={org.org_logo || "https://placehold.co/100x100"}
+                            src={
+                              org.org_logo ||
+                              "https://www.svgrepo.com/show/508699/landscape-placeholder.svg"
+                            }
                             alt={org.org_name}
                             className="w-16 h-16 object-cover"
                           />
