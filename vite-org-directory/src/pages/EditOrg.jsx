@@ -44,6 +44,9 @@ const EditOrg = () => {
   const [featuredPhotos, setFeaturedPhotos] = useState([]);
   const [featuredPhotoPreviews, setFeaturedPhotoPreviews] = useState([]);
   const MAX_FEATURED_PHOTOS = 3;
+  const [userEmails, setUserEmails] = useState([]);
+  const [selectedUserEmail, setSelectedUserEmail] = useState(null); 
+
 
   useEffect(() => {
     const fetchData = async () => {
@@ -164,6 +167,34 @@ const EditOrg = () => {
 
     fetchData();
   }, [slug]);
+
+  useEffect(() => {
+    const fetchUserEmails = async () => {
+      try {
+        // Fetch emails from auth_user_view
+        const { data, error } = await supabase
+          .from("auth_user_view")
+          .select("email");
+  
+        if (error) {
+          console.error("Error fetching user emails:", error.message);
+          return;
+        }
+  
+        // Map data to react-select format
+        const formattedEmails = data.map((user) => ({
+          value: user.email,
+          label: user.email,
+        }));
+  
+        setUserEmails(formattedEmails);
+      } catch (err) {
+        console.error("Error fetching user emails:", err);
+      }
+    };
+  
+    fetchUserEmails();
+  }, []);
 
   useEffect(() => {
     if (logoFile) {
@@ -601,6 +632,26 @@ const EditOrg = () => {
                     />
                   </div>
                 </div>
+
+                {/* Dropdown for User Emails */}
+                {adminName === "Super Admin" && (
+                  <div className="mt-6 w-full">
+                    <label className="block font-medium text-gray-700 mb-2">Add Admin</label>
+                    <Select
+                      options={userEmails} // Options for the dropdown
+                      value={
+                        userEmails.find((option) => option.value === selectedUserEmail) || null
+                      } // Selected value
+                      onChange={(selectedOption) =>
+                        setSelectedUserEmail(selectedOption?.value || null)
+                      } // Handle selection
+                      className="react-select-container"
+                      classNamePrefix="react-select"
+                      placeholder="Select a user email"
+                      isClearable
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Right Column - Settings */}
