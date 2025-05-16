@@ -1,17 +1,21 @@
 import { useState, useEffect } from "react";
-import { FaRegTrashAlt, FaUserTimes, FaEdit, FaEye } from "react-icons/fa";
+import {
+  FaRegTrashAlt,
+  FaUserTimes,
+  FaEdit,
+  FaEye,
+  FaUserPlus,
+} from "react-icons/fa";
 import Navbar from "@/components/navbar.jsx";
 import { supabase } from "@/supabaseClient";
-import { toast } from "react-hot-toast";
-import SuccessToast from "@/components/successToast";
-import ErrorToast from "@/components/errorToast";
 import { DotPulse } from "ldrs/react";
 import "ldrs/react/DotPulse.css";
-import ConfirmAction from "../components/ui/confirmAction";
-import SearchBar from "../components/searchBar";
-import TabNavigation from "../components/tabNavigation";
-import OrganizationDetails from "../components/orgDetails";
-import ActionButton from "../components/ui/actionbutton";
+import ConfirmAction from "@/components/ui/confirmAction";
+import SearchBar from "@/components/searchBar";
+import TabNavigation from "@/components/tabNavigation";
+import OrganizationDetails from "@/components/orgDetails";
+import ActionButton from "@/components/ui/actionbutton";
+import Alert from "@/components/ui/Alert";
 
 const TABS = ["Admin Login Record", "Admins", "Organizations"];
 
@@ -30,16 +34,27 @@ export default function SAdminDashboard() {
   const [loginRecords, setLoginRecords] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentAdminId, setCurrentAdminId] = useState(null);
+  const [alert, setAlert] = useState({
+    show: false,
+    message: "",
+    type: "error",
+  });
 
   // invite
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
 
-
   useEffect(() => {
     fetchCurrentAdmin();
     fetchData();
   }, [activeTab]);
+
+  // Auto-dismiss alert
+  useEffect(() => {
+    if (!alert.show) return;
+    const timer = setTimeout(() => setAlert({ ...alert, show: false }), 3000);
+    return () => clearTimeout(timer);
+  }, [alert]);
 
   // Fetch the current admin ID from session or localStorage
   const fetchCurrentAdmin = async () => {
@@ -121,9 +136,13 @@ export default function SAdminDashboard() {
       }
     } catch (error) {
       console.error("Error fetching data:", error);
-      toast.custom(
-        <ErrorToast message={`Failed to load data: ${error.message}`} />
-      );
+
+      setAlert({
+        show: true,
+        message:
+          `Failed to load data: ${error.message}` || "Error loading data.",
+        type: "error",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -131,7 +150,11 @@ export default function SAdminDashboard() {
 
   const handleConfirm = async () => {
     if (!selectedItem) {
-      toast.custom(<ErrorToast message="No item selected." />);
+      setAlert({
+        show: true,
+        message: "No item selected",
+        type: "error",
+      });
       setModalOpen(false);
       return;
     }
@@ -181,11 +204,12 @@ export default function SAdminDashboard() {
         setOrganizations(
           organizations.filter((org) => org.org_id !== selectedItem.org_id)
         );
-        toast.custom(
-          <SuccessToast message="Organization deleted successfully." />
-        );
+        setAlert({
+          show: true,
+          message: "Organization deleted successfully.",
+          type: "success",
+        });
       } else if (actionType === "remove-admin") {
-        // 1. Check if admin exists
         const { data: adminCheck, error: adminCheckError } = await supabase
           .from("admin")
           .select("admin_id")
@@ -197,7 +221,6 @@ export default function SAdminDashboard() {
           throw new Error("Admin not found.");
         }
 
-        // 2. Delete the admin
         const { error } = await supabase
           .from("admin")
           .delete()
@@ -208,21 +231,23 @@ export default function SAdminDashboard() {
           throw new Error("Failed to remove admin.");
         }
 
-        // 3. Log the activity in admin_login_record (if needed)
-        // This would be a separate function
-
-        // 4. Update local state
         setAdmins(
           admins.filter((admin) => admin.admin_id !== selectedItem.admin_id)
         );
 
-        toast.custom(<SuccessToast message="Admin removed successfully!" />);
+        setAlert({
+          show: true,
+          message: "Admin removed successfully!",
+          type: "success",
+        });
       }
     } catch (error) {
       console.error("Error performing action:", error);
-      toast.custom(
-        <ErrorToast message={`Operation failed: ${error.message}`} />
-      );
+      setAlert({
+        show: true,
+        message: `Operation failed: ${error.message}`,
+        type: "error",
+      });
     } finally {
       setModalOpen(false);
     }
@@ -280,10 +305,18 @@ export default function SAdminDashboard() {
   return (
     <>
       <Navbar userRole="superadmin" />
+      {alert.show && (
+        <Alert
+          type={alert.type}
+          message={alert.message}
+          isOpen={alert.show}
+          onClose={() => setAlert({ ...alert, show: false })}
+        />
+      )}
       <div className="p-4 space-y-6 mt-21">
         <h1 className="text-2xl font-bold">Super Admin Dashboard</h1>
         {/* Tabs */}
-        <div className="bg-gray-100 p-2 rounded-md shadow-inner">
+        <div className="bg-gray-100 p-2 rounded-md shadow-inner dark:bg-gray-800 dark:text-white transition-all duration-200">
           <TabNavigation
             tabs={TABS}
             activeTab={activeTab}
@@ -291,20 +324,8 @@ export default function SAdminDashboard() {
           />
         </div>
 
-        {/* Add Invite Button */}
-        {activeTab === "Admins" && (
-          <div className="flex justify-end mb-4">
-            <button
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-              onClick={() => setInviteModalOpen(true)}
-            >
-              Invite Admin
-            </button>
-          </div>
-        )}
-
         {/* Search Input */}
-        <div className="bg-gray-100 p-4 rounded-md shadow-inner">
+        <div className="bg-gray-100 p-4 rounded-md shadow-inner dark:bg-gray-800 dark:text-white transition-all duration-200 ">
           <h2 className="text-lg font-semibold mb-3">
             {activeTab === "Organizations"
               ? "Manage Organizations"
@@ -312,17 +333,31 @@ export default function SAdminDashboard() {
               ? "Manage Admins"
               : "Admin Login Record"}
           </h2>
-          <SearchBar
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={
-              activeTab === "Admins"
-                ? "Search organization or admin"
-                : activeTab === "Admin Login Record"
-                ? "Search admin login records"
-                : "Search organization"
-            }
-          />
+          <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 mb-4 text-gray-700 dark:text-gray-900 transition-all duration-200 ">
+            <div className="flex-1">
+              <SearchBar
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={
+                  activeTab === "Admins"
+                    ? "Search organization or admin"
+                    : activeTab === "Admin Login Record"
+                    ? "Search admin login records"
+                    : "Search organization"
+                }
+              />
+            </div>
+
+            {activeTab === "Admins" && (
+              <button
+                className="w-full md:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 bg-maroon text-white font-medium rounded-md shadow-sm hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-maroon focus:ring-offset-2 transition-all duration-200"
+                onClick={() => setInviteModalOpen(true)}
+              >
+                <FaUserPlus className="text-white" />
+                Invite Admin
+              </button>
+            )}
+          </div>
 
           {/* Loading State */}
           {isLoading && (
@@ -333,7 +368,7 @@ export default function SAdminDashboard() {
 
           {/* Table Content */}
           {!isLoading && (
-            <div className="overflow-x-auto bg-white rounded-md shadow-sm mt-4">
+            <div className="overflow-x-auto bg-white rounded-md shadow-sm mt-4 dark:bg-gray-900  dark:text-white transition-all duration-200">
               {activeTab === "Organizations" && (
                 <table className={`min-w-full ${tableBaseClasses}`}>
                   <thead>
@@ -351,7 +386,7 @@ export default function SAdminDashboard() {
                       filteredOrganizations.map((org) => (
                         <tr
                           key={org.org_id}
-                          className="border-t hover:bg-gray-50"
+                          className="border-t hover:bg-gray-50 dark:bg-gray-900 dark:hover:bg-gray-700 transition-all duration-200"
                         >
                           <td className="px-4 py-2 w-2/3">
                             <div className="flex items-center gap-3 min-w-0">
@@ -366,7 +401,7 @@ export default function SAdminDashboard() {
                                   N/A
                                 </div>
                               )}
-                              <span className="font-medium text-base text-gray-800 truncate">
+                              <span className="font-medium text-base text-gray-800 truncate dark:text-white transition-all duration-200">
                                 {org.org_name}
                               </span>
                             </div>
@@ -439,7 +474,7 @@ export default function SAdminDashboard() {
                       filteredAdmins.map((admin) => (
                         <tr
                           key={admin.admin_id}
-                          className="border-t hover:bg-gray-50"
+                          className="border-t hover:bg-gray-50 dark:hover:bg-gray-700"
                         >
                           <td className="px-4 py-2">
                             {admin.admin_name}
@@ -457,7 +492,7 @@ export default function SAdminDashboard() {
                                 setSelectedItem(admin);
                                 setModalOpen(true);
                               }}
-                              className="flex items-center gap-1 bg-red-100 hover:bg-red-200 cursor-pointer text-red-700 text-sm px-3 py-1 rounded-full mx-auto"
+                              className="flex items-center gap-1 bg-red-100 hover:bg-red-200 cursor-pointer text-red-700 text-sm px-3 py-1 rounded-full mx-auto dark:bg-red-900 dark:text-red-100 dark:hover:bg-red-700 transition-all duration-200"
                             >
                               <FaUserTimes /> Remove
                             </button>
@@ -497,7 +532,7 @@ export default function SAdminDashboard() {
                       filteredLoginRecords.map((record) => (
                         <tr
                           key={record.login_id}
-                          className="border-t hover:bg-gray-50"
+                          className="border-t hover:bg-gray-50 dark:hover:bg-gray-700"
                         >
                           <td className="px-4 py-2 text-left">
                             {record.admin?.admin_name || "Unknown"}
@@ -556,12 +591,13 @@ export default function SAdminDashboard() {
         )}
       </div>
 
-
       {/* Invite Admin Modal */}
       {inviteModalOpen && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className="bg-white p-6 rounded shadow-lg w-full max-w-sm">
-            <h2 className="text-lg font-bold mb-4">Invite Admin</h2>
+        <div className="fixed inset-0 flex items-center justify-center bg-opacity-50 z-50">
+          <div className="bg-white p-6 rounded shadow-lg w-full max-w-sm dark:bg-gray-800 dark:text-white transition-all duration-200">
+            <h2 className="text-lg font-bold mb-4 dark:text-gray-400">
+              Invite Admin
+            </h2>
             <input
               type="email"
               className="w-full border px-3 py-2 rounded mb-4"
@@ -571,7 +607,7 @@ export default function SAdminDashboard() {
             />
             <div className="flex justify-end space-x-2">
               <button
-                className="px-4 py-2 bg-gray-300 rounded"
+                className="px-4 py-2 bg-gray-300 rounded dark:bg-gray-700 dark:text-white hover:bg-gray-400 dark:hover:bg-gray-600 transition-all duration-200"
                 onClick={() => {
                   setInviteModalOpen(false);
                   setInviteEmail("");
@@ -583,47 +619,65 @@ export default function SAdminDashboard() {
                 className="px-4 py-2 bg-maroon text-white rounded hover:bg-red-700"
                 onClick={async () => {
                   if (!inviteEmail) {
-                    toast.custom(<ErrorToast message="Please enter a valid email." />);
+                    setAlert({
+                      show: true,
+                      message: "Please enter a valid email.",
+                      type: "error",
+                    });
                     return;
                   }
-                
+
                   try {
                     // Get access token from Supabase
                     const {
                       data: { session },
-                      error: sessionError
+                      error: sessionError,
                     } = await supabase.auth.getSession();
-                
+
                     if (sessionError || !session?.access_token) {
-                      throw new Error("Authentication token missing or invalid.");
+                      throw new Error(
+                        "Authentication token missing or invalid."
+                      );
                     }
-                
+
                     const accessToken = session.access_token;
-                
-                    const response = await fetch("https://ruigijbnxjgbndetnvhd.supabase.co/functions/v1/invite-admin", {
-                      method: "POST",
-                      headers: {
-                        "Content-Type": "application/json",
-                        "Authorization": `Bearer ${accessToken}`
-                      },
-                      body: JSON.stringify({ email: inviteEmail }),
-                    });
-                
+
+                    const response = await fetch(
+                      "https://ruigijbnxjgbndetnvhd.supabase.co/functions/v1/invite-admin",
+                      {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/json",
+                          Authorization: `Bearer ${accessToken}`,
+                        },
+                        body: JSON.stringify({ email: inviteEmail }),
+                      }
+                    );
+
                     const result = await response.json();
-                
+
                     if (response.ok) {
-                      toast.custom(<SuccessToast message="Invite sent successfully!" />);
+                      setAlert({
+                        show: true,
+                        message: "Invite sent successfully.",
+                        type: "success",
+                      });
                       setInviteModalOpen(false);
                       setInviteEmail("");
                     } else {
-                      throw new Error(result.message || "Failed to send invite.");
+                      throw new Error(
+                        result.message || "Failed to send invite."
+                      );
                     }
                   } catch (error) {
                     console.error("Invite error:", error);
-                    toast.custom(<ErrorToast message={`Invite failed: ${error.message}`} />);
+                    setAlert({
+                      show: true,
+                      message: `Invite failed: ${error.message}`,
+                      type: "error",
+                    });
                   }
                 }}
-                
               >
                 Send Invite
               </button>
@@ -631,7 +685,6 @@ export default function SAdminDashboard() {
           </div>
         </div>
       )}
-
     </>
   );
 }

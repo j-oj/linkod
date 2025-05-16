@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap");
 @import "tailwindcss";
 @import "tw-animate-css";
 @tailwind base;
@@ -118,8 +118,8 @@
 /* edited to follow up colors */
 @theme {
   --color-maroon: #7b1113;
-  --color-mustard: #FFAD14;
-  --color-green: #00573F;
+  --color-mustard: #ffad14;
+  --color-green: #00573f;
 }
 
 @layer base {
@@ -142,7 +142,7 @@
 
 /* added Inter font family */
 body {
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 /* custom-text-shadow for the hero section*/
@@ -172,4 +172,36 @@ body {
 .my-datepicker .react-datepicker__day:hover {
   background-color: #fca5a5; /* red-300 */
   color: #b91c1c;
+}
+
+:root {
+  --input-bg: #ffffff;
+  --border-color: #d1d5db;
+  --text-color: #374151;
+  --dropdown-bg: #ffffff;
+  --placeholder-color: #9ca3af;
+}
+
+.dark {
+  --input-bg: #364253;
+  --border-color: #4b5563;
+  --text-color: #f3f4f6;
+  --dropdown-bg: #1f2937;
+  --placeholder-color: #9ca3af;
+}
+
+.card-hidden,
+.card-visible {
+  will-change: transform, opacity;
+}
+
+.card-hidden {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.card-visible {
+  opacity: 1;
+  transform: translateY(0);
 }
