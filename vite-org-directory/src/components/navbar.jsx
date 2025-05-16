@@ -237,14 +237,6 @@ const Navbar = () => {
                           Add Organization
                         </Link>
                       </li>
-                      <li>
-                        <Link
-                          to="/create-admin"
-                          className="block px-4 py-2 hover:bg-gray-200"
-                        >
-                          Create Admin
-                        </Link>
-                      </li>
                     </>
                   )}
                   <li
