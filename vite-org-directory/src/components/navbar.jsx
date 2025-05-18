@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "../supabaseClient";
-import { FaMoon, FaSun } from "react-icons/fa";
+import { FaMoon, FaSun, FaHome } from "react-icons/fa";
 
 const Navbar = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -167,13 +167,12 @@ const Navbar = () => {
 
   return (
     <div className="fixed top-0 left-0 w-full z-50 bg-maroon text-white px-6 py-4 flex justify-between items-center shadow-sm">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2"> 
         <img src="/templogo.png" alt="logo" className="w-12 md:w-14" />
-        <Link to="/">
-          <span className="text-xl md:text-2xl font-bold">ISK</span>
+        <Link to="/" className="flex items-center">
+          <span className="text-xl md:text-2xl font-bold">Link</span>  {/* changed org name */}
           <span className="text-xl md:text-2xl font-bold text-yellow-400">
-            Org
-          </span>
+            OD </span>
         </Link>
       </div>
 

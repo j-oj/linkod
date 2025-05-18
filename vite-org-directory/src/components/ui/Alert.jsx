@@ -29,7 +29,7 @@ const Alert = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-auto">
-      <div className="bg-white w-80 md:w-96 rounded-lg shadow-lg p-6 text-center">
+      <div className="bg-white w-80 md:w-96 rounded-lg shadow-lg border p-6 text-center dark:bg-gray-900 dark:text-white dark:border-gray-700"> {/*added dark mode*/}
         <h2 className="text-lg font-semibold mb-2">{alertTitle}</h2>
         <div className="flex justify-center mb-3">{icon}</div>
         <p className="font-semibold">{message}</p>
