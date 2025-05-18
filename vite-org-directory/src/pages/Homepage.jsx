@@ -307,13 +307,14 @@ const Homepage = () => {
           <div className="text-center left-0 text-white mt-5 lg:mt-20 px-5 py-5 custom-text-shadow">
             <h1 className="text-2xl font-bold text-white mb-2.5 md:text-4xl lg:text-5xl">
               {" "}
-              <span className="text-mustard">Connect</span> with your UP Mindanao Community now!{" "}
+              <span className="text-mustard">Connect</span> with your UP
+              Mindanao Community now!{" "}
             </h1>
             <h2 className="text-l italic md:text-2xl">
               An online directory for student-led campus organizations.
             </h2>
           </div>
-          <span className="absolute bottom-10 lg:bottom-3 left-5 text-xs md:text-sm z-10 text-white">&copy; UP Mindanao Public Relations Office </span>
+            <span className="absolute bottom-10 lg:bottom-3 left-5 text-xs md:text-sm z-10 text-white">&copy; UP Mindanao Public Relations Office </span>
         </div>
       </section>
 
@@ -326,7 +327,7 @@ const Homepage = () => {
               placeholder="Search organizations..."
               value={searchTerm}
               onChange={handleSearch}
-              className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 rounded-lg py-2.5 px-4 pl-10 focus:outline-none focus:ring-2 focus:ring-maroon text-gray-800 dark:text-white"
+              className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 rounded-lg py-2.5 px-4 pl-10 focus:outline-none focus:ring-1 focus:ring-maroon dark:focus:ring-red-600 text-gray-800 dark:text-white"
             />
             <div
               className="absolute flex left-3 top-4 text-gray-400 cursor-pointer"
@@ -358,7 +359,7 @@ const Homepage = () => {
               }}
             >
               <div className="relative w-full sm:w-60">
-                <ListboxButton className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-white rounded-lg py-2.5 px-4 pr-10 text-left focus:outline-none focus:ring-2 focus:ring-maroon">
+                <ListboxButton className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-white rounded-lg py-2.5 px-4 pr-10 text-left focus:outline-none focus:ring-1 focus:ring-maroon dark:focus:ring-red-600">
                   {selectedCategory || "All Categories"}
                   <span className="absolute inset-y-0 right-4 flex items-center pointer-events-none">
                     <FaChevronDown className="text-gray-400" />
@@ -449,7 +450,9 @@ const Homepage = () => {
                     }`}
                   >
                     <div className="h-1.5 bg-maroon"></div>
-                    <div className="p-8"> {/*added padding to make the cards look bigger*/}
+                    <div className="p-8">
+                      {" "}
+                      {/*added padding to make the cards look bigger*/}
                       {isAdmin && (
                         <div
                           className="absolute top-2 right-2 bg-yellow-400 text-maroon rounded-full p-1.5"
@@ -459,7 +462,7 @@ const Homepage = () => {
                         </div>
                       )}
                       <div className="flex flex-col items-center">
-                        <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-700 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
+                        <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-700 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform duration-300">
                           <img
                             src={
                               org.org_logo ||
@@ -469,10 +472,10 @@ const Homepage = () => {
                             className="w-16 h-16 object-cover"
                           />
                         </div>
-                        <h2 className="font-bold text-base text-center text-gray-800 dark:text-white truncate max-w-full">
+                        <h2 className="font-bold text-base text-center text-gray-800 dark:text-white truncate max-w-full transition-transform duration-300">
                           {org.org_name}
                         </h2>
-                        <span className="mt-2 inline-block px-3 py-1 bg-gray-100 dark:bg-gray-700 text-xs rounded-full text-gray-600 dark:text-gray-300">
+                        <span className="mt-2 inline-block px-3 py-1 bg-gray-100 dark:bg-gray-700 text-xs rounded-full text-gray-600 dark:text-gray-300 transition-transform duration-300">
                           {org.category?.category_name}
                         </span>
                       </div>
