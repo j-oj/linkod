@@ -44,12 +44,10 @@ const EditOrg = () => {
   const [featuredPhotos, setFeaturedPhotos] = useState([]);
   const [featuredPhotoPreviews, setFeaturedPhotoPreviews] = useState([]);
   const MAX_FEATURED_PHOTOS = 3;
-<<<<<<< HEAD
   const [userEmails, setUserEmails] = useState([]);
   const [selectedUserEmail, setSelectedUserEmail] = useState(null); 
   const [currentAdmin, setCurrentAdmin] = useState(null);
 
-=======
   const [fieldErrors, setFieldErrors] = useState({});
 
   // Component for displaying field-specific error messages
@@ -58,7 +56,6 @@ const EditOrg = () => {
       <div className="text-red-500 text-xs mt-1 animate-pulse">{message}</div>
     ) : null;
   };
->>>>>>> 0e8725f1c78765f6199e34e3bbec6411a3a0891e
 
   useEffect(() => {
     const fetchData = async () => {

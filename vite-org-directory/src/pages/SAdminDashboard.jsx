@@ -734,9 +734,12 @@ export default function SAdminDashboard() {
                         );
                       }
 
-                      toast.custom(
-                        <SuccessToast message="Invite sent and role assigned successfully!" />
-                      );
+                      setAlert({
+                        show: true,
+                        message: "Invite sent! Role is assigned successfuly.",
+                        type: "success",
+                      });
+
                       setInviteModalOpen(false);
                       setInviteEmail("");
                       setSelectedRole(null);
