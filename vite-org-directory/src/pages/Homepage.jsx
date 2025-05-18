@@ -304,17 +304,17 @@ const Homepage = () => {
           }}
           className="relative"
         >
-          <div className="text-center left-0 text-white mt-20 px-5 py-5 custom-text-shadow">
-            <h1 className="text-4xl font-bold text-white mb-2.5 lg:text-5xl">
+          <div className="text-center left-0 text-white mt-5 lg:mt-20 px-5 py-5 custom-text-shadow">
+            <h1 className="text-2xl font-bold text-white mb-2.5 md:text-4xl lg:text-5xl">
               {" "}
               <span className="text-mustard">Connect</span> with your UP Mindanao Community now!{" "}
             </h1>
-            <h2 className="text-2xl italic">
+            <h2 className="text-l italic md:text-2xl">
               {" "}
               An online directory for student-led campus organizations.{" "}
             </h2>
           </div>
-          <span className="absolute bottom-3 left-5 text-sm z-10 text-white">&copy; University of the Philippines Mindanao </span>
+          <span className="absolute bottom-10 lg:bottom-3 left-5 text-xs lg:text-sm z-10 text-white">&copy; University of the Philippines Mindanao </span>
         </div>
       </section>
 
