@@ -311,13 +311,10 @@ const Homepage = () => {
               Mindanao Community now!{" "}
             </h1>
             <h2 className="text-l italic md:text-2xl">
-              {" "}
-              An online directory for student-led campus organizations.{" "}
+              An online directory for student-led campus organizations.
             </h2>
           </div>
-          <span className="absolute bottom-10 lg:bottom-3 left-5 text-xs lg:text-sm z-10 text-white">
-            &copy; University of the Philippines Mindanao{" "}
-          </span>
+            <span className="absolute bottom-10 lg:bottom-3 left-5 text-xs md:text-sm z-10 text-white">&copy; UP Mindanao Public Relations Office </span>
         </div>
       </section>
 
