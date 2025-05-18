@@ -43,6 +43,7 @@ export default function SAdminDashboard() {
   // invite
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
+  const [selectedRole, setSelectedRole] = useState("");
 
   useEffect(() => {
     fetchCurrentAdmin();
@@ -158,6 +159,19 @@ export default function SAdminDashboard() {
       setModalOpen(false);
       return;
     }
+
+    // Check if selectedItem has a valid admin_id
+    if (!selectedItem?.admin_id) {
+      console.error("Admin ID is missing or invalid:", selectedItem);
+      setAlert({
+        show: true,
+        message: "Failed to identify the admin to remove.",
+        type: "error",
+      });
+      return;
+    }
+    
+    console.log("Admin ID to remove:", selectedItem.admin_id); 
 
     try {
       if (actionType === "delete-org") {
@@ -359,6 +373,8 @@ export default function SAdminDashboard() {
             if (!response.ok) {
               throw new Error(result.message || "Error deleting user account");
             }
+
+            console.log("Delete User Response:", result);
 
             // Success!
             setAlert({
@@ -641,6 +657,7 @@ export default function SAdminDashboard() {
                           <td className="px-4 py-2 text-center">
                             <button
                               onClick={() => {
+                                console.log("Selected Admin: ", admin)
                                 setActionType("remove-admin");
                                 setSelectedItem(admin);
                                 setModalOpen(true);
@@ -758,16 +775,34 @@ export default function SAdminDashboard() {
               value={inviteEmail}
               onChange={(e) => setInviteEmail(e.target.value)}
             />
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Select Role
+              </label>
+              <select
+                value={selectedRole}
+                onChange={(e) => setSelectedRole(e.target.value)}
+                className="w-full border px-3 py-2 rounded"
+              >
+                <option value="" disabled>
+                  Select a role
+                </option>
+                <option value="admin">Admin</option>
+                <option value="superadmin">Super Admin</option>
+              </select>
+            </div>
             <div className="flex justify-end space-x-2">
               <button
                 className="px-4 py-2 bg-gray-300 rounded dark:bg-gray-700 dark:text-white hover:bg-gray-400 dark:hover:bg-gray-600 transition-all duration-200"
                 onClick={() => {
                   setInviteModalOpen(false);
                   setInviteEmail("");
+                  setSelectedRole(""); // Reset role selection
                 }}
               >
                 Cancel
               </button>
+               
               <button
                 className="px-4 py-2 bg-maroon text-white rounded hover:bg-red-700"
                 onClick={async () => {
@@ -775,6 +810,15 @@ export default function SAdminDashboard() {
                     setAlert({
                       show: true,
                       message: "Please enter a valid email.",
+                      type: "error",
+                    });
+                    return;
+                  }
+
+                  if (!selectedRole) {
+                    setAlert({
+                      show: true,
+                      message: "Please select a role.",
                       type: "error",
                     });
                     return;
