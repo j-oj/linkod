@@ -6,6 +6,7 @@ import { supabase } from "@/supabaseClient";
 import ActionButton from "@/components/ui/actionbutton";
 import Navbar from "@/components/navbar";
 import { useLoading } from "@/context/LoadingContext";
+import { useRef } from "react";
 import Alert from "@/components/ui/Alert";
 
 const Login = () => {
@@ -23,6 +24,8 @@ const Login = () => {
   const navigate = useNavigate();
   const togglePasswordView = () => setShowPassword(!showPassword);
 
+  // Ref to track if login record has been inserted
+  const loginRecordInserted = useRef(false);
   // Auto-dismiss alert
   useEffect(() => {
     if (!alert.show) return;
@@ -46,37 +49,21 @@ const Login = () => {
           .single();
 
         if (!adminError && adminData) {
-          // Log last sign-in (optional)
-          const { data: userData, error: userError } = await supabase
-            .from("auth.users")
-            .select("last_sign_in_at")
-            .eq("id", userId)
-            .single();
+          // Insert login record only if it hasn't been inserted yet
+          if (!loginRecordInserted.current) {
+            loginRecordInserted.current = true; // Mark as inserted
+            const { error: insertError } = await supabase
+              .from("admin_login_record")
+              .insert({
+                admin_id: userId,
+                login_time: new Date().toISOString(), // Use ISO string for consistency
+              });
 
-          if (userError) {
-            console.error(
-              "Failed to fetch user last sign-in:",
-              userError.message
-            );
-          } else {
-            console.log("Last sign-in:", userData.last_sign_in_at);
-          }
-
-          // Insert login record without checking time diff
-          const { error: insertError } = await supabase
-            .from("admin_login_record")
-            .insert({
-              admin_id: userId,
-              login_time: new Date(),
-            });
-
-          if (insertError) {
-            console.error(
-              "Failed to insert admin login record:",
-              insertError.message
-            );
-          } else {
-            console.log("Admin login record inserted.");
+            if (insertError) {
+              console.error("Failed to insert admin login record:", insertError.message);
+            } else {
+              console.log("Admin login record inserted.");
+            }
           }
         }
 
@@ -92,7 +79,7 @@ const Login = () => {
     try {
       const { data: userData, error: userError } = await supabase
         .from("user_roles")
-        .select("role, organization_slug")
+        .select("role")
         .eq("user_id", userId)
         .single();
 

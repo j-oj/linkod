@@ -316,21 +316,6 @@ const Navbar = () => {
                           Add Organization
                         </Link>
                       </li>
-                      <li>
-                        <Link
-                          to="/create-admin"
-                          className={`block px-4 py-2 hover:bg-gray-200 dark:hover:bg-gray-700 relative ${
-                            isActiveLink("/create-admin")
-                              ? "font-bold bg-gradient-to-r from-maroon/10 to-transparent dark:from-yellow-400/20 pl-6"
-                              : ""
-                          }`}
-                        >
-                          {isActiveLink("/create-admin") && (
-                            <span className="absolute left-0 top-0 bottom-0 w-1 bg-maroon dark:bg-yellow-400"></span>
-                          )}
-                          Create Admin
-                        </Link>
-                      </li>
                     </>
                   )}
                   <li

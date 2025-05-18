@@ -43,6 +43,8 @@ export default function SAdminDashboard() {
   // invite
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
+  const [roles, setRoles] = useState([]);
+  const [selectedRole, setSelectedRole] = useState(null);
 
   useEffect(() => {
     fetchCurrentAdmin();
@@ -85,6 +87,26 @@ export default function SAdminDashboard() {
       setCurrentAdminId("default-admin-id");
     }
   };
+
+  useEffect(() => {
+    const fetchRoles = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("user_roles")
+          .select("user_id, role");
+  
+        if (error) {
+          console.error("Error fetching roles:", error.message);
+        } else {
+          setRoles(data || []);
+        }
+      } catch (err) {
+        console.error("Error fetching roles:", err);
+      }
+    };
+  
+    fetchRoles();
+  }, []);
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -593,11 +615,19 @@ export default function SAdminDashboard() {
 
       {/* Invite Admin Modal */}
       {inviteModalOpen && (
-        <div className="fixed inset-0 flex items-center justify-center bg-opacity-50 z-50">
-          <div className="bg-white p-6 rounded shadow-lg w-full max-w-sm dark:bg-gray-800 dark:text-white transition-all duration-200">
-            <h2 className="text-lg font-bold mb-4 dark:text-gray-400">
-              Invite Admin
-            </h2>
+        <div className="fixed inset-0 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded shadow-lg w-full max-w-sm relative">
+            <button
+              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
+              onClick={() => {
+                setInviteModalOpen(false);
+                setInviteEmail("");
+                setSelectedRole(null);
+              }}
+            >
+              &times;
+            </button>
+            <h2 className="text-lg font-bold mb-4">Invite Admin</h2>
             <input
               type="email"
               className="w-full border px-3 py-2 rounded mb-4"
@@ -605,12 +635,29 @@ export default function SAdminDashboard() {
               value={inviteEmail}
               onChange={(e) => setInviteEmail(e.target.value)}
             />
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select Role
+              </label>
+              <select
+                className="w-full border px-3 py-2 rounded"
+                value={selectedRole || ""}
+                onChange={(e) => setSelectedRole(e.target.value)}
+              >
+                <option value="" disabled>
+                  Select a role
+                </option>
+                <option value="admin">admin</option>
+                <option value="superadmin">superadmin</option>
+              </select>
+            </div>
             <div className="flex justify-end space-x-2">
               <button
                 className="px-4 py-2 bg-gray-300 rounded dark:bg-gray-700 dark:text-white hover:bg-gray-400 dark:hover:bg-gray-600 transition-all duration-200"
                 onClick={() => {
                   setInviteModalOpen(false);
                   setInviteEmail("");
+                  setSelectedRole(null);
                 }}
               >
                 Cancel
@@ -618,7 +665,7 @@ export default function SAdminDashboard() {
               <button
                 className="px-4 py-2 bg-maroon text-white rounded hover:bg-red-700"
                 onClick={async () => {
-                  if (!inviteEmail) {
+                  if (!inviteEmail || !selectedRole) {
                     setAlert({
                       show: true,
                       message: "Please enter a valid email.",
@@ -642,6 +689,7 @@ export default function SAdminDashboard() {
 
                     const accessToken = session.access_token;
 
+                    // Send invite
                     const response = await fetch(
                       "https://ruigijbnxjgbndetnvhd.supabase.co/functions/v1/invite-admin",
                       {
@@ -657,13 +705,41 @@ export default function SAdminDashboard() {
                     const result = await response.json();
 
                     if (response.ok) {
-                      setAlert({
-                        show: true,
-                        message: "Invite sent successfully.",
-                        type: "success",
-                      });
+                      // Wait for the user to be created in auth_user_view
+                      const { data: userData, error: userError } = await supabase
+                        .from("auth_user_view")
+                        .select("id")
+                        .eq("email", inviteEmail.trim().toLowerCase())
+                        .single();
+
+                      if (userError || !userData) {
+                        throw new Error(
+                          userError?.message || "Failed to retrieve user UID."
+                        );
+                      }
+
+                      // Insert the UID and role into the user_roles table
+                      const { error: roleInsertError } = await supabase
+                        .from("user_roles")
+                        .insert([
+                          {
+                            user_id: userData.id, // UID from auth_user_view
+                            role: selectedRole, // Selected role (admin or superadmin)
+                          },
+                        ]);
+
+                      if (roleInsertError) {
+                        throw new Error(
+                          roleInsertError.message || "Failed to assign role."
+                        );
+                      }
+
+                      toast.custom(
+                        <SuccessToast message="Invite sent and role assigned successfully!" />
+                      );
                       setInviteModalOpen(false);
                       setInviteEmail("");
+                      setSelectedRole(null);
                     } else {
                       throw new Error(
                         result.message || "Failed to send invite."

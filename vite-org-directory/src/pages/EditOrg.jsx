@@ -44,6 +44,12 @@ const EditOrg = () => {
   const [featuredPhotos, setFeaturedPhotos] = useState([]);
   const [featuredPhotoPreviews, setFeaturedPhotoPreviews] = useState([]);
   const MAX_FEATURED_PHOTOS = 3;
+<<<<<<< HEAD
+  const [userEmails, setUserEmails] = useState([]);
+  const [selectedUserEmail, setSelectedUserEmail] = useState(null); 
+  const [currentAdmin, setCurrentAdmin] = useState(null);
+
+=======
   const [fieldErrors, setFieldErrors] = useState({});
 
   // Component for displaying field-specific error messages
@@ -52,6 +58,7 @@ const EditOrg = () => {
       <div className="text-red-500 text-xs mt-1 animate-pulse">{message}</div>
     ) : null;
   };
+>>>>>>> 0e8725f1c78765f6199e34e3bbec6411a3a0891e
 
   useEffect(() => {
     const fetchData = async () => {
@@ -172,6 +179,59 @@ const EditOrg = () => {
 
     fetchData();
   }, [slug]);
+
+  useEffect(() => {
+    const fetchCurrentAdmin = async () => {
+      try {
+        const { data: adminData, error: adminError } = await supabase
+          .from("admin")
+          .select("admin_name, admin_email")
+          .eq("org_id", org?.org_id)
+          .single();
+  
+        if (adminError) {
+          console.error("Error fetching current admin:", adminError.message);
+          return;
+        }
+  
+        setCurrentAdmin(adminData); // Save the current admin's details
+      } catch (err) {
+        console.error("Error fetching current admin:", err);
+      }
+    };
+  
+    if (org?.org_id) {
+      fetchCurrentAdmin();
+    }
+  }, [org?.org_id]);
+
+  useEffect(() => {
+    const fetchUserEmails = async () => {
+      try {
+        // Fetch emails from auth_user_view
+        const { data, error } = await supabase
+          .from("auth_user_view")
+          .select("email");
+  
+        if (error) {
+          console.error("Error fetching user emails:", error.message);
+          return;
+        }
+  
+        // Map data to react-select format
+        const formattedEmails = data.map((user) => ({
+          value: user.email,
+          label: user.email,
+        }));
+  
+        setUserEmails(formattedEmails);
+      } catch (err) {
+        console.error("Error fetching user emails:", err);
+      }
+    };
+  
+    fetchUserEmails();
+  }, []);
 
   useEffect(() => {
     if (logoFile) {
@@ -663,6 +723,188 @@ const EditOrg = () => {
                     {org.president}
                   </p>
                 </div>
+
+                {/* Dropdown for User Emails */}
+                {adminName === "Super Admin" && (
+                  <div className="mt-6 w-full">
+                  {currentAdmin ? (
+                    <div>
+                      <label className="block font-medium text-gray-700 mb-2">Current Admin</label>
+                      <div className="flex items-center justify-between bg-gray-100 p-3 rounded-lg">
+                        <div>
+                          <p className="font-medium">{currentAdmin.admin_name}</p>
+                          <p className="text-sm text-gray-500">{currentAdmin.admin_email}</p>
+                        </div>
+                        <button
+                          className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                          onClick={async () => {
+                            if (window.confirm("Are you sure you want to remove this admin?")) {
+                              try {
+                                const { error } = await supabase
+                                  .from("admin")
+                                  .delete()
+                                  .eq("org_id", org.org_id);
+                
+                                if (error) {
+                                  throw new Error(error.message);
+                                }
+                
+                                alert("Admin removed successfully!");
+                                setCurrentAdmin(null); // Clear the current admin display
+                              } catch (err) {
+                                console.error("Error removing admin:", err);
+                                alert("Failed to remove admin. Please try again.");
+                              }
+                            }
+                          }}
+                        >
+                          Remove Admin
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500 mt-2">No admin assigned to this organization.</p>
+                  )}
+                
+                  <label className="block font-medium text-gray-700 mt-6 mb-2">Add Admin</label>
+                  <Select
+                    options={userEmails}
+                    value={
+                      userEmails.find((option) => option.value === selectedUserEmail) || null
+                    }
+                    onChange={(selectedOption) =>
+                      setSelectedUserEmail(selectedOption?.value || null)
+                    }
+                    className="react-select-container"
+                    classNamePrefix="react-select"
+                    placeholder="Select a user email"
+                    isClearable
+                  />
+                  <div className="mt-4">
+                    <button
+                      className="px-4 py-2 bg-maroon text-white rounded hover:bg-red-700"
+                      onClick={async () => {
+                        if (!selectedUserEmail) {
+                          alert("Please select a user to add as admin.");
+                          return;
+                        }
+                
+                        try {
+                          // Fetch user details from the view
+                          const { data: userData, error: userError } = await supabase
+                            .from("auth_user_view")
+                            .select("id, display_name, created_at")
+                            .eq("email", selectedUserEmail)
+                            .single();
+                
+                          if (userError || !userData) {
+                            throw new Error(
+                              userError?.message || "Failed to retrieve user details."
+                            );
+                          }
+                
+                          const {
+                            id: admin_id,
+                            display_name: admin_name,
+                            created_at: admin_created_at,
+                          } = userData;
+                
+                          // Insert admin details into the admin table
+                          const { error: insertError } = await supabase.from("admin").insert([
+                            {
+                              admin_id, // User ID from auth_user_view
+                              admin_email: selectedUserEmail, // Selected email
+                              admin_name, // Display name from auth_user_view
+                              org_id: org.org_id, // Organization ID from the current page
+                              admin_created_at, // Created at from auth_user_view
+                            },
+                          ]);
+                
+                          if (insertError) {
+                            throw new Error(insertError.message || "Failed to add admin.");
+                          }
+                
+                          alert("Admin added successfully!");
+                          setSelectedUserEmail(null); // Clear the dropdown selection
+                        } catch (error) {
+                          console.error("Error adding admin:", error);
+                          alert(`Error: ${error.message}`);
+                        }
+                      }}
+                    >
+                      Add Admin
+                    </button>
+                    <button
+                      className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 ml-4"
+                      onClick={async () => {
+                        if (!selectedUserEmail) {
+                          alert("Please select a user to replace the current admin.");
+                          return;
+                        }
+
+                        if (
+                          !window.confirm(
+                            "This will replace the current admin with the selected user. Are you sure?"
+                          )
+                        ) {
+                          return;
+                        }
+
+                        try {
+                          // Fetch user details from the view
+                          const { data: userData, error: userError } = await supabase
+                            .from("auth_user_view")
+                            .select("id, display_name, created_at")
+                            .eq("email", selectedUserEmail)
+                            .single();
+                
+                          if (userError || !userData) {
+                            throw new Error(
+                              userError?.message || "Failed to retrieve user details."
+                            );
+                          }
+
+                          const {
+                            id: admin_id,
+                            display_name: admin_name,
+                            created_at: admin_created_at,
+                          } = userData;
+
+                          // Replace the admin in the admin table
+                          const { error: replaceError } = await supabase
+                          .from("admin")
+                          .upsert([
+                            {
+                              admin_id, // New admin ID
+                              admin_email: selectedUserEmail, // New admin email
+                              admin_name, // New admin name
+                              org_id: org.org_id, // Organization ID
+                              admin_created_at, // New admin created_at
+                            },
+                          ]);
+
+                          if (replaceError) {
+                            throw new Error(replaceError.message || "Failed to replace admin.");
+                          }
+                
+                          alert("Admin replaced successfully!");
+                          setCurrentAdmin({
+                            admin_name,
+                            admin_email: selectedUserEmail,
+                          }); // Update the current admin display
+                          setSelectedUserEmail(null); // Clear the dropdown selection
+                        } catch (error) {
+                          console.error("Error replacing admin:", error);
+                          alert(`Error: ${error.message}`);
+                        }
+                      }}
+                    >
+                      Replace Admin
+                    </button>
+
+                  </div>
+                </div>
+                )}
               </div>
 
               {/* Right Column - Settings */}

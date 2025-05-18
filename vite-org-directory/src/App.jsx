@@ -8,8 +8,6 @@ import SAdminDashboard from "@/pages/SAdminDashboard";
 import AddOrg from "@/pages/AddOrg";
 import EditOrg from "@/pages/EditOrg";
 import OrgPage from "@/pages/OrgPage";
-import CreateAdmin from "@/pages/CreateAdmin";
-import AcceptInvitation from "@/pages/AcceptInvitation";
 
 import ProtectedRoutes from "@/utils/ProtectedRoutes";
 import AppLayout from "@/components/AppLayout";
@@ -26,7 +24,6 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/auth/callback" element={<GoogleCallback />} />
           <Route path="/orgs/:slug" element={<OrgPage />} />
-          <Route path="/accept-invitation" element={<AcceptInvitation />} />
 
           {/* Admin Protected Routes */}
           <Route element={<ProtectedRoutes allowedRole="admin" />}>
@@ -37,7 +34,6 @@ function App() {
           <Route element={<ProtectedRoutes allowedRole="superadmin" />}>
             <Route path="/superadmin-dashboard" element={<SAdminDashboard />} />
             <Route path="/add-organization" element={<AddOrg />} />
-            <Route path="/create-admin" element={<CreateAdmin />} />
           </Route>
         </Route>
       </Routes>
