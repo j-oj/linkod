@@ -43,8 +43,6 @@ export default function SAdminDashboard() {
   // invite
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
-  const [roles, setRoles] = useState([]);
-  const [selectedRole, setSelectedRole] = useState(null);
 
   useEffect(() => {
     fetchCurrentAdmin();
@@ -71,7 +69,7 @@ export default function SAdminDashboard() {
           .from("admin")
           .select("admin_id")
           .eq("admin_id", session.user.id)
-          .single();
+          .maybeSingle();
 
         if (data) {
           setCurrentAdminId(data.admin_id);
@@ -87,26 +85,6 @@ export default function SAdminDashboard() {
       setCurrentAdminId("default-admin-id");
     }
   };
-
-  useEffect(() => {
-    const fetchRoles = async () => {
-      try {
-        const { data, error } = await supabase
-          .from("user_roles")
-          .select("user_id, role");
-  
-        if (error) {
-          console.error("Error fetching roles:", error.message);
-        } else {
-          setRoles(data || []);
-        }
-      } catch (err) {
-        console.error("Error fetching roles:", err);
-      }
-    };
-  
-    fetchRoles();
-  }, []);
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -181,37 +159,98 @@ export default function SAdminDashboard() {
       return;
     }
 
-    console.log("Deleting org:", selectedItem);
-
     try {
       if (actionType === "delete-org") {
+        console.log("Deleting org:", selectedItem);
+
         // 1. Check if organization exists
         const { data: orgCheck, error: orgCheckError } = await supabase
           .from("organization")
           .select("org_id")
           .eq("org_id", selectedItem.org_id)
-          .single();
+          .maybeSingle();
 
         if (orgCheckError) {
           console.error("Organization check error:", orgCheckError);
           throw new Error("Organization not found.");
         }
 
-        // 2. Delete related org_tag entries
-        const { error: tagDeleteError } = await supabase
+        // 2. Get all admins of this organization
+        const { data: orgAdmins, error: orgAdminsError } = await supabase
+          .from("admin")
+          .select("admin_id")
+          .eq("org_id", selectedItem.org_id);
+
+        if (orgAdminsError) {
+          console.error("Error fetching organization admins:", orgAdminsError);
+          throw new Error("Failed to identify organization admins.");
+        }
+
+        // Note: We're not deleting user_roles entries for admins
+        // Based on your database structure, these should be preserved
+        // as they define whether users are admins or superadmins
+        const adminIds = orgAdmins?.map((admin) => admin.admin_id) || [];
+
+        if (orgAdmins && orgAdmins.length > 0) {
+          // 3. Delete admin login records for these admins
+          const { error: loginRecordsDeleteError } = await supabase
+            .from("admin_login_record")
+            .delete()
+            .in("admin_id", adminIds);
+
+          if (loginRecordsDeleteError) {
+            console.error(
+              "Failed to delete related login records:",
+              loginRecordsDeleteError
+            );
+            // Continue with deletion even if this fails
+          }
+
+          // 4. Delete the admins associated with this organization
+          // Note: This only removes them from the admin table, not from user_roles
+          const { error: adminsDeleteError } = await supabase
+            .from("admin")
+            .delete()
+            .eq("org_id", selectedItem.org_id);
+
+          if (adminsDeleteError) {
+            console.error(
+              "Failed to delete related admins:",
+              adminsDeleteError
+            );
+            // Continue with deletion even if this fails
+          }
+          // 3.5. Delete user_roles entries for these admins
+          const { error: userRolesDeleteError } = await supabase
+            .from("user_roles")
+            .delete()
+            .in("user_id", adminIds);
+
+          if (userRolesDeleteError) {
+            console.error(
+              "Failed to delete related user_roles:",
+              userRolesDeleteError
+            );
+            // Continue with deletion even if this fails
+          }
+        }
+
+        // 6. Delete related org_tag entries (junction table only)
+        // This preserves the tags themselves in the tag table
+        const { error: orgTagDeleteError } = await supabase
           .from("org_tag")
           .delete()
           .eq("org_id", selectedItem.org_id);
 
-        if (tagDeleteError) {
+        if (orgTagDeleteError) {
           console.error(
             "Failed to delete related org_tag entries:",
-            tagDeleteError
+            orgTagDeleteError
           );
-          throw new Error("Failed to delete related tags. Deletion aborted.");
+          // Continue with deletion even if this fails
         }
 
-        // 3. Delete organization
+        // 7. Delete organization
         const { error: orgDeleteError } = await supabase
           .from("organization")
           .delete()
@@ -222,7 +261,7 @@ export default function SAdminDashboard() {
           throw new Error("Failed to delete organization.");
         }
 
-        // 5. Update local state
+        // 8. Update local state
         setOrganizations(
           organizations.filter((org) => org.org_id !== selectedItem.org_id)
         );
@@ -231,37 +270,129 @@ export default function SAdminDashboard() {
           message: "Organization deleted successfully.",
           type: "success",
         });
-      } else if (actionType === "remove-admin") {
-        const { data: adminCheck, error: adminCheckError } = await supabase
-          .from("admin")
-          .select("admin_id")
-          .eq("admin_id", selectedItem.admin_id)
-          .single();
 
-        if (adminCheckError) {
-          console.error("Admin check error:", adminCheckError);
-          throw new Error("Admin not found.");
+        // Refresh data to update all tabs
+        fetchData();
+      } // Replace the admin removal code in handleConfirm function with this implementation:
+      else if (actionType === "remove-admin") {
+        try {
+          // First check if admin exists
+          const { data: adminCheck, error: adminCheckError } = await supabase
+            .from("admin")
+            .select("admin_id")
+            .eq("admin_id", selectedItem.admin_id)
+            .maybeSingle();
+
+          if (adminCheckError) {
+            console.error("Admin check error:", adminCheckError);
+            throw new Error("Admin not found.");
+          }
+
+          // 1. Delete admin login records first (foreign key relationship)
+          const { error: loginRecordsDeleteError } = await supabase
+            .from("admin_login_record")
+            .delete()
+            .eq("admin_id", selectedItem.admin_id);
+
+          if (loginRecordsDeleteError) {
+            console.error(
+              "Login records deletion error:",
+              loginRecordsDeleteError
+            );
+            // Continue with deletion even if this fails, but log it
+          }
+
+          // 2. Delete from user_roles table
+          const { error: userRolesDeleteError } = await supabase
+            .from("user_roles")
+            .delete()
+            .eq("user_id", selectedItem.admin_id);
+
+          if (userRolesDeleteError) {
+            console.error("Failed to delete user_roles:", userRolesDeleteError);
+            // Continue with deletion even if this fails, but log it
+          }
+
+          // 3. Delete from admin table
+          const { error: adminDeleteError } = await supabase
+            .from("admin")
+            .delete()
+            .eq("admin_id", selectedItem.admin_id);
+
+          if (adminDeleteError) {
+            console.error("Admin removal error:", adminDeleteError);
+            throw new Error("Failed to remove admin from admin table.");
+          }
+
+          // 4. Call the delete_user RPC function with proper error handling
+          // Using the Edge Function approach as a more reliable method
+          try {
+            // Get current session to extract access token
+            const {
+              data: { session },
+              error: sessionError,
+            } = await supabase.auth.getSession();
+
+            if (sessionError || !session?.access_token) {
+              throw new Error(
+                "Authentication required to delete user account."
+              );
+            }
+
+            // Call the edge function to delete the user from auth.users
+            const response = await fetch(
+              "https://ruigijbnxjgbndetnvhd.supabase.co/functions/v1/delete-user",
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${session.access_token}`,
+                },
+                body: JSON.stringify({
+                  userId: selectedItem.admin_id,
+                }),
+              }
+            );
+
+            const result = await response.json();
+
+            if (!response.ok) {
+              throw new Error(result.message || "Error deleting user account");
+            }
+
+            // Success!
+            setAlert({
+              show: true,
+              message: "Admin removed successfully from all systems!",
+              type: "success",
+            });
+          } catch (authDeleteError) {
+            console.error("Auth user deletion error:", authDeleteError);
+            setAlert({
+              show: true,
+              message:
+                "Admin removed from organization but could not delete authentication record. Manual cleanup may be required.",
+              type: "warning",
+            });
+          }
+
+          // Update UI by removing the admin from the list
+          setAdmins(
+            admins.filter((admin) => admin.admin_id !== selectedItem.admin_id)
+          );
+
+          // Refresh login records data if needed
+          if (activeTab === "Admin Login Record") {
+            fetchData();
+          }
+        } catch (error) {
+          console.error("Error removing admin:", error);
+          setAlert({
+            show: true,
+            message: `Failed to remove admin: ${error.message}`,
+            type: "error",
+          });
         }
-
-        const { error } = await supabase
-          .from("admin")
-          .delete()
-          .eq("admin_id", selectedItem.admin_id);
-
-        if (error) {
-          console.error("Admin removal error:", error);
-          throw new Error("Failed to remove admin.");
-        }
-
-        setAdmins(
-          admins.filter((admin) => admin.admin_id !== selectedItem.admin_id)
-        );
-
-        setAlert({
-          show: true,
-          message: "Admin removed successfully!",
-          type: "success",
-        });
       }
     } catch (error) {
       console.error("Error performing action:", error);
@@ -615,19 +746,11 @@ export default function SAdminDashboard() {
 
       {/* Invite Admin Modal */}
       {inviteModalOpen && (
-        <div className="fixed inset-0 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded shadow-lg w-full max-w-sm relative">
-            <button
-              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
-              onClick={() => {
-                setInviteModalOpen(false);
-                setInviteEmail("");
-                setSelectedRole(null);
-              }}
-            >
-              &times;
-            </button>
-            <h2 className="text-lg font-bold mb-4">Invite Admin</h2>
+        <div className="fixed inset-0 flex items-center justify-center bg-opacity-50 z-50">
+          <div className="bg-white p-6 rounded shadow-lg w-full max-w-sm dark:bg-gray-800 dark:text-white transition-all duration-200">
+            <h2 className="text-lg font-bold mb-4 dark:text-gray-400">
+              Invite Admin
+            </h2>
             <input
               type="email"
               className="w-full border px-3 py-2 rounded mb-4"
@@ -635,29 +758,12 @@ export default function SAdminDashboard() {
               value={inviteEmail}
               onChange={(e) => setInviteEmail(e.target.value)}
             />
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Select Role
-              </label>
-              <select
-                className="w-full border px-3 py-2 rounded"
-                value={selectedRole || ""}
-                onChange={(e) => setSelectedRole(e.target.value)}
-              >
-                <option value="" disabled>
-                  Select a role
-                </option>
-                <option value="admin">admin</option>
-                <option value="superadmin">superadmin</option>
-              </select>
-            </div>
             <div className="flex justify-end space-x-2">
               <button
                 className="px-4 py-2 bg-gray-300 rounded dark:bg-gray-700 dark:text-white hover:bg-gray-400 dark:hover:bg-gray-600 transition-all duration-200"
                 onClick={() => {
                   setInviteModalOpen(false);
                   setInviteEmail("");
-                  setSelectedRole(null);
                 }}
               >
                 Cancel
@@ -665,7 +771,7 @@ export default function SAdminDashboard() {
               <button
                 className="px-4 py-2 bg-maroon text-white rounded hover:bg-red-700"
                 onClick={async () => {
-                  if (!inviteEmail || !selectedRole) {
+                  if (!inviteEmail) {
                     setAlert({
                       show: true,
                       message: "Please enter a valid email.",
@@ -689,7 +795,6 @@ export default function SAdminDashboard() {
 
                     const accessToken = session.access_token;
 
-                    // Send invite
                     const response = await fetch(
                       "https://ruigijbnxjgbndetnvhd.supabase.co/functions/v1/invite-admin",
                       {
@@ -742,7 +847,6 @@ export default function SAdminDashboard() {
 
                       setInviteModalOpen(false);
                       setInviteEmail("");
-                      setSelectedRole(null);
                     } else {
                       throw new Error(
                         result.message || "Failed to send invite."
