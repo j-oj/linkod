@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
-import { FaMoon } from "react-icons/fa";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "../supabaseClient";
+import { FaMoon, FaSun, FaHome } from "react-icons/fa";
 
 const Navbar = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -129,24 +129,72 @@ const Navbar = () => {
     navigate("/login");
   };
 
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    if (typeof window !== "undefined") {
+      return (
+        localStorage.theme === "dark" ||
+        (!("theme" in localStorage) &&
+          window.matchMedia("(prefers-color-scheme: dark)").matches)
+      );
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    document.body.classList.toggle("dark", isDarkMode);
+  }, [isDarkMode]);
+
+  const toggleTheme = () => {
+    const newTheme = !isDarkMode;
+    setIsDarkMode(newTheme);
+    localStorage.theme = newTheme ? "dark" : "light";
+    document.body.classList.toggle("dark", newTheme);
+  };
+
+  // Function to check if a link is active
+  const isActiveLink = (path) => {
+    // For the home page
+    if (path === "/" && location.pathname === "/") {
+      return true;
+    }
+    // For other pages, check if the current path starts with the given path
+    // This handles nested routes like /edit-org/some-slug
+    if (path !== "/" && location.pathname.startsWith(path)) {
+      return true;
+    }
+    return false;
+  };
+
   return (
-    <div className="fixed top-0 left-0 w-full z-50 bg-maroon text-white px-6 py-4 flex justify-between items-center">
-      <div className="flex items-center gap-2">
+    <div className="fixed top-0 left-0 w-full z-50 bg-maroon text-white px-6 py-4 flex justify-between items-center shadow-sm">
+      <div className="flex items-center gap-2"> 
         <img src="/templogo.png" alt="logo" className="w-12 md:w-14" />
-        <Link to="/">
-          <span className="text-xl md:text-2xl font-bold">ISK</span>
+        <Link to="/" className="flex items-center">
+          <span className="text-xl md:text-2xl font-bold">Link</span>  {/* changed org name */}
           <span className="text-xl md:text-2xl font-bold text-yellow-400">
-            Org
-          </span>
+            OD </span>
         </Link>
       </div>
 
       <div className="flex items-center gap-4 relative" ref={dropdownRef}>
         <button
-          className="text-xl"
-          onClick={() => document.body.classList.toggle("dark")}
+          onClick={toggleTheme}
+          className={`w-12 h-7 flex items-center px-[3px] rounded-full transition-colors duration-300 ${
+            isDarkMode ? "bg-yellow-500" : "bg-gray-300"
+          }`}
+          aria-label="Toggle Dark Mode"
         >
-          <FaMoon />
+          <div
+            className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform duration-300 flex items-center justify-center ${
+              isDarkMode ? "translate-x-5" : "translate-x-0"
+            }`}
+          >
+            {isDarkMode ? (
+              <FaMoon className="text-[12px] text-yellow-600" />
+            ) : (
+              <FaSun className="text-[12px] text-yellow-400" />
+            )}
+          </div>
         </button>
 
         {userRole === "guest" && !isLoginPage && (
@@ -186,7 +234,7 @@ const Navbar = () => {
             </button>
 
             {dropdownOpen && (
-              <div className="absolute right-0 mt-2 w-56 bg-gray-100 text-black rounded-md shadow-md z-50 border border-gray-200">
+              <div className="absolute right-0 mt-2 w-56 bg-gray-100 text-black rounded-md shadow-md z-50 border border-gray-200 dark:bg-gray-800 dark:text-white dark:border-gray-700 transition-all duration-300 ease-in-out">
                 <div className="p-3 border-b">
                   <p className="font-semibold text-sm flex items-center w-full overflow-hidden">
                     <span className="truncate max-w-[60%]">
@@ -195,7 +243,7 @@ const Navbar = () => {
                         user?.email?.split("@")[0] ||
                         "Unnamed User"}
                     </span>
-                    <span className="ml-1 text-xs px-2 py-0.5 bg-maroon bg-opacity-10 text-white rounded whitespace-nowrap">
+                    <span className="ml-1 text-xs px-2 py-0.5 bg-maroon bg-opacity-10 text-white rounded whitespace-nowrap dark:bg-yellow-400 dark:text-gray-900">
                       {userRole === "superadmin" ? "Super Admin" : "Admin"}
                     </span>
                   </p>
@@ -205,7 +253,17 @@ const Navbar = () => {
                 </div>
                 <ul className="text-sm">
                   <li>
-                    <Link to="/" className="block px-4 py-2 hover:bg-gray-200">
+                    <Link
+                      to="/"
+                      className={`block px-4 py-2 hover:bg-gray-200 dark:hover:bg-gray-700 relative ${
+                        isActiveLink("/")
+                          ? "font-bold bg-gradient-to-r from-maroon/10 to-transparent dark:from-mustard/20 pl-6"
+                          : ""
+                      }`}
+                    >
+                      {isActiveLink("/") && (
+                        <span className="absolute left-0 top-0 bottom-0 w-1 bg-maroon dark:bg-yellow-400"></span>
+                      )}
                       Home
                     </Link>
                   </li>
@@ -213,8 +271,15 @@ const Navbar = () => {
                     <li>
                       <Link
                         to={`/edit-org/${adminOrgSlug}`}
-                        className="block px-4 py-2 hover:bg-gray-200"
+                        className={`block px-4 py-2 hover:bg-gray-200 dark:hover:bg-gray-700 relative ${
+                          isActiveLink("/edit-org")
+                            ? "font-bold bg-gradient-to-r from-maroon/10 to-transparent dark:from-yellow-400/20 pl-6"
+                            : ""
+                        }`}
                       >
+                        {isActiveLink("/edit-org") && (
+                          <span className="absolute left-0 top-0 bottom-0 w-1 bg-maroon dark:bg-yellow-400"></span>
+                        )}
                         Edit Organization
                       </Link>
                     </li>
@@ -224,16 +289,30 @@ const Navbar = () => {
                       <li>
                         <Link
                           to="/superadmin-dashboard"
-                          className="block px-4 py-2 hover:bg-gray-200"
+                          className={`block px-4 py-2 hover:bg-gray-200 dark:hover:bg-gray-700 relative ${
+                            isActiveLink("/superadmin-dashboard")
+                              ? "font-bold bg-gradient-to-r from-maroon/10 to-transparent dark:from-yellow-400/20 pl-6"
+                              : ""
+                          }`}
                         >
+                          {isActiveLink("/superadmin-dashboard") && (
+                            <span className="absolute left-0 top-0 bottom-0 w-1 bg-maroon dark:bg-yellow-400"></span>
+                          )}
                           Super Admin Dashboard
                         </Link>
                       </li>
                       <li>
                         <Link
                           to="/add-organization"
-                          className="block px-4 py-2 hover:bg-gray-200"
+                          className={`block px-4 py-2 hover:bg-gray-200 dark:hover:bg-gray-700 relative ${
+                            isActiveLink("/add-organization")
+                              ? "font-bold bg-gradient-to-r from-maroon/10 to-transparent dark:from-yellow-400/20 pl-6"
+                              : ""
+                          }`}
                         >
+                          {isActiveLink("/add-organization") && (
+                            <span className="absolute left-0 top-0 bottom-0 w-1 bg-maroon dark:bg-yellow-400"></span>
+                          )}
                           Add Organization
                         </Link>
                       </li>
@@ -241,7 +320,7 @@ const Navbar = () => {
                   )}
                   <li
                     onClick={handleLogout}
-                    className="px-4 py-2 text-red-600 hover:bg-gray-200 cursor-pointer"
+                    className="px-4 py-2 text-red-600 hover:bg-gray-200 cursor-pointer dark:text-mustard dark:hover:bg-gray-700 rounded-b-md"
                   >
                     Log out
                   </li>

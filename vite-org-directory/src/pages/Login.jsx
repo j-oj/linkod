@@ -7,18 +7,31 @@ import ActionButton from "@/components/ui/actionbutton";
 import Navbar from "@/components/navbar";
 import { useLoading } from "@/context/LoadingContext";
 import { useRef } from "react";
+import Alert from "@/components/ui/Alert";
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [errorMsg, setErrorMsg] = useState("");
+  const [alert, setAlert] = useState({
+    show: false,
+    message: "",
+    type: "error",
+  });
+  const [emailError, setEmailError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
   const { loading, setLoading } = useLoading();
   const navigate = useNavigate();
   const togglePasswordView = () => setShowPassword(!showPassword);
 
   // Ref to track if login record has been inserted
   const loginRecordInserted = useRef(false);
+  // Auto-dismiss alert
+  useEffect(() => {
+    if (!alert.show) return;
+    const timer = setTimeout(() => setAlert({ ...alert, show: false }), 4000);
+    return () => clearTimeout(timer);
+  }, [alert]);
 
   useEffect(() => {
     const checkSessionAndLogAdmin = async () => {
@@ -28,7 +41,7 @@ const Login = () => {
       if (session) {
         const userId = session.user.id;
 
-        // Check if user is an admin
+        // Check if this user is an admin
         const { data: adminData, error: adminError } = await supabase
           .from("admin")
           .select("admin_id")
@@ -62,67 +75,93 @@ const Login = () => {
     checkSessionAndLogAdmin();
   }, [navigate]);
 
-  // Function to handle redirection based on user role
   const redirectBasedOnRole = async (userId) => {
     try {
-      console.log("Redirecting based on role for user:", userId);
-
       const { data: userData, error: userError } = await supabase
         .from("user_roles")
         .select("role")
         .eq("user_id", userId)
         .single();
 
-      if (userError) {
-        console.error("Error fetching user role:", userError.message);
-        // Default to homepage if role can't be determined
-        console.log("Redirecting to homepage due to error");
-        navigate("/", { replace: true });
+      console.log("user_roles fetch result:", { userData, userError });
+
+      if (userError || !userData?.role) {
+        setAlert({
+          show: true,
+          message: "Your account does not have access. Contact admin.",
+          type: "error",
+        });
         return;
       }
 
-      console.log("User role data:", userData);
       localStorage.setItem("userRole", userData.role || "user");
 
-      // Default to homepage for all users
-      console.log("Redirecting to homepage");
-      navigate("/", { replace: true });
-    } catch (error) {
-      console.error("Redirection error:", error);
-      // Default to homepage on any error
-      console.log("Redirecting to homepage due to exception");
-      navigate("/", { replace: true });
+      // Show success message before redirecting
+      setAlert({
+        show: true,
+        message: "Login successful!",
+        type: "success",
+      });
+
+      // Delay navigation slightly to show success message
+      setTimeout(() => {
+        navigate("/", { replace: true });
+      }, 1000);
+    } catch (err) {
+      console.error("redirectBasedOnRole failed:", err);
+      setAlert({
+        show: true,
+        message: "Login failed. Please try again.",
+        type: "error",
+      });
     }
   };
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    setAlert({ show: false, message: "", type: "error" });
+    setEmailError("");
+    setPasswordError("");
+
+    let hasError = false;
+    if (!email.trim()) {
+      setEmailError("Email is required.");
+      hasError = true;
+    }
+    if (!password.trim()) {
+      setPasswordError("Password is required.");
+      hasError = true;
+    }
+
+    if (hasError) return;
+
     setLoading(true);
-    setErrorMsg("");
 
     try {
-      console.log("Attempting login with email:", email);
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
-        console.error("Login Error:", error);
-        setErrorMsg("Invalid email or password. Please try again.");
+        setAlert({
+          show: true,
+          message: "Invalid email or password. Please try again.",
+          type: "error",
+        });
         setLoading(false);
         return;
       }
 
-      console.log("Login successful:", data.user.id);
-
-      // Force navigation to homepage immediately after successful login
-      console.log("Redirecting to homepage after login");
-      navigate("/", { replace: true });
-      setLoading(false);
-    } catch (error) {
-      console.error("Unexpected error:", error);
-      setErrorMsg("Login failed. Please try again.");
+      const userId = data.user.id;
+      redirectBasedOnRole(userId);
+    } catch {
+      setAlert({
+        show: true,
+        message: "Login failed. Please try again.",
+        type: "error",
+      });
+    } finally {
       setLoading(false);
     }
   };
@@ -131,21 +170,26 @@ const Login = () => {
     setLoading(true);
 
     try {
-      console.log("Attempting Google login");
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/`, // Redirect directly to homepage
+          redirectTo: `${window.location.origin}/`,
         },
       });
 
       if (error) {
-        console.error("Google Login Error:", error);
-        setErrorMsg("Google Sign-In failed. Please try again.");
+        setAlert({
+          show: true,
+          message: "Google Sign-In failed. Please try again.",
+          type: "error",
+        });
       }
-    } catch (error) {
-      console.error("Unexpected Google login error:", error);
-      setErrorMsg("Google Sign-In failed. Please try again.");
+    } catch {
+      setAlert({
+        show: true,
+        message: "Google Sign-In failed. Please try again.",
+        type: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -154,16 +198,29 @@ const Login = () => {
   return (
     <>
       <Navbar userRole={localStorage.getItem("userRole") || "guest"} />
+      {alert.show && (
+        <Alert
+          type={alert.type}
+          message={alert.message}
+          isOpen={alert.show}
+          onClose={() => setAlert({ ...alert, show: false })}
+        />
+      )}
+
       <div className="w-full h-screen flex items-center justify-center">
-        <div className="w-[90%] max-w-sm md:max-w-md lg:max-w-md p-5 bg-gray-100 flex-col flex items-center gap-3 rounded-xl shadow-slate-400 shadow-md">
-          <img src="/templogo.png" alt="logo" className="w-12 md:w-14" />
-          <h1 className="text-rose-950 text-lg md:text-xl font-semibold">
+        <div className="w-[90%] max-w-sm md:max-w-md p-5 bg-gray-100 dark:bg-gray-900 flex-col flex items-center gap-3 rounded-xl shadow-md transition-all duration-300">
+          <img src="/templogo.png" alt="logo" className="w-25 md:w-14" />
+          <h1 className="text-rose-950 text-lg md:text-xl font-semibold dark:text-white">
             Welcome!
           </h1>
 
           <form onSubmit={handleLogin} className="w-full flex flex-col gap-3">
-            <div className="w-full flex flex-col gap-3">
-              <div className="w-full flex items-center gap-2 bg-neutral-200 p-2 rounded-xl">
+            <div className="w-full flex flex-col gap-2">
+              <div
+                className={`w-full flex items-center gap-2 bg-neutral-200 p-2 rounded-xl dark:bg-gray-800 relative transition-all duration-300 ${
+                  emailError ? "border border-red-500" : ""
+                }`}
+              >
                 <MdAlternateEmail />
                 <input
                   type="email"
@@ -171,10 +228,20 @@ const Login = () => {
                   className="bg-transparent border-0 w-full outline-none text-sm md:text-base"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  aria-describedby="emailError"
                 />
               </div>
+              {emailError && (
+                <p id="emailError" className="text-red-500 text-xs ml-2">
+                  {emailError}
+                </p>
+              )}
 
-              <div className="w-full flex items-center gap-2 bg-neutral-200 p-2 rounded-xl relative">
+              <div
+                className={`w-full flex items-center gap-2 bg-neutral-200 p-2 rounded-xl dark:bg-gray-800 relative transition-all duration-300 ${
+                  passwordError ? "border border-red-500" : ""
+                }`}
+              >
                 <FaFingerprint />
                 <input
                   type={showPassword ? "text" : "password"}
@@ -182,6 +249,7 @@ const Login = () => {
                   className="bg-transparent border-0 w-full outline-none text-sm md:text-base"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  aria-describedby="passwordError"
                 />
                 {showPassword ? (
                   <FaRegEye
@@ -195,9 +263,12 @@ const Login = () => {
                   />
                 )}
               </div>
+              {passwordError && (
+                <p id="passwordError" className="text-red-500 text-xs ml-2">
+                  {passwordError}
+                </p>
+              )}
             </div>
-
-            {errorMsg && <p className="text-red-500 text-sm">{errorMsg}</p>}
 
             <button
               type="submit"
@@ -222,7 +293,7 @@ const Login = () => {
 
           <button
             onClick={handleGoogleLogin}
-            className="w-full text-white flex items-center place-content-center p-2 bg-maroon rounded-xl mt-3 hover:bg-red-800 text-sm md:text-base"
+            className="w-full text-white flex items-center justify-center p-2 bg-maroon rounded-xl mt-3 hover:bg-red-800 text-sm md:text-base"
           >
             <img
               src="/google-icon.png"

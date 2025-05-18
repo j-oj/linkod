@@ -13,8 +13,10 @@ import {
   FaChevronLeft,
   FaChevronRight,
 } from "react-icons/fa6";
+import { FaTimes } from "react-icons/fa";
 
-const DEFAULT_LOGO_URL = "https://placehold.co/600x400";
+const DEFAULT_LOGO_URL =
+  "https://www.svgrepo.com/show/508699/landscape-placeholder.svg";
 
 const OrgPage = () => {
   const { slug } = useParams();
@@ -203,11 +205,11 @@ const OrgPage = () => {
   return (
     <>
       <Navbar />
-      <div className="max-w-5xl mx-auto mt-30 px-4 sm:px-6">
-        <div className="bg-white p-4 sm:p-6 rounded-lg shadow-lg space-y-6 sm:space-y-8">
-          {/* Header - Responsive layout with flex-col on small screens */}
+      <div className="max-w-5xl mx-auto mt-20 px-4 sm:px-6 pb-12">
+        <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-lg space-y-6 sm:space-y-8">
+          {/* Header - Responsive layout: centered on mobile, left-aligned on larger screens */}
           <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6">
-            <div className="w-32 h-32 sm:w-24 sm:h-24 rounded-full overflow-hidden border border-gray-300">
+            <div className="w-32 h-32 sm:w-24 sm:h-24 rounded-full overflow-hidden border border-gray-300 dark:border-gray-600">
               <img
                 src={org.org_logo || DEFAULT_LOGO_URL}
                 alt="Org Logo"
@@ -215,24 +217,24 @@ const OrgPage = () => {
               />
             </div>
             <div className="flex-1 text-center sm:text-left">
-              <h1 className="text-2xl sm:text-3xl font-semibold text-gray-800">
+              <h1 className="text-2xl sm:text-3xl font-semibold text-gray-800 dark:text-gray-100 mb-2 sm:mb-1">
                 {org.org_name}
               </h1>
-              <p className="text-gray-600">
+              <p className="text-gray-600 dark:text-gray-300">
                 Led by:{" "}
                 <span className="font-medium">{org.president || "N/A"}</span>
               </p>
-              <p className="text-gray-600">
+              <p className="text-gray-600 dark:text-gray-300">
                 Category:{" "}
                 <span className="font-medium">
                   {org.category?.category_name || "Uncategorized"}
                 </span>
               </p>
-              <p className="text-gray-600">
+              <p className="text-gray-600 dark:text-gray-300">
                 Email:{" "}
                 <a
                   href={`mailto:${org.org_email}`}
-                  className="text-blue-600 underline"
+                  className="text-blue-600 dark:text-blue-400 underline hover:text-blue-700 dark:hover:text-blue-300"
                 >
                   {org.org_email || "N/A"}
                 </a>
@@ -240,15 +242,17 @@ const OrgPage = () => {
             </div>
           </div>
 
-          {/* Tags */}
+          {/* Tags - Centered on mobile, left-aligned on larger screens */}
           {tags.length > 0 && (
-            <div>
-              <h2 className="text-xl font-semibold text-gray-700 mb-2">Tags</h2>
+            <div className="text-center sm:text-left">
+              <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-200 mb-2">
+                Tags
+              </h2>
               <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
                 {tags.map((tag, idx) => (
                   <span
                     key={idx}
-                    className="bg-yellow-400 text-black px-3 py-1 rounded-full text-sm font-medium"
+                    className="bg-yellow-400 dark:bg-yellow-500 text-black dark:text-gray-900 px-3 py-1 rounded-full text-sm font-medium"
                   >
                     {tag}
                   </span>
@@ -258,22 +262,24 @@ const OrgPage = () => {
           )}
 
           {/* About */}
-          <div>
-            <h2 className="text-xl font-semibold text-gray-700 mb-2">About</h2>
-            <p className="text-gray-700 whitespace-pre-line">
+          <div className="text-center sm:text-left">
+            <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-200 mb-2">
+              About
+            </h2>
+            <p className="text-gray-700 dark:text-gray-300 whitespace-pre-line">
               {org.about || "No description available."}
             </p>
           </div>
 
-          {/* Social Media */}
+          {/* Social Media - Stack vertically on all screen sizes */}
           {org.socmed_links && Object.keys(org.socmed_links).length > 0 && (
-            <div>
-              <h2 className="text-xl font-semibold text-gray-700 mb-2">
+            <div className="text-center sm:text-left">
+              <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-200 mb-2">
                 Social Media
               </h2>
               <div className="space-y-2">
                 {org.socmed_links.facebook && (
-                  <div className="flex items-center gap-3 text-[#1877F2]">
+                  <div className="flex items-center gap-3 text-[#1877F2] justify-center sm:justify-start">
                     <FaFacebook />
                     <a
                       href={org.socmed_links.facebook}
@@ -286,7 +292,7 @@ const OrgPage = () => {
                   </div>
                 )}
                 {org.socmed_links.twitter && (
-                  <div className="flex items-center gap-3 text-black">
+                  <div className="flex items-center gap-3 text-black dark:text-white justify-center sm:justify-start">
                     <FaXTwitter />
                     <a
                       href={org.socmed_links.twitter}
@@ -299,7 +305,7 @@ const OrgPage = () => {
                   </div>
                 )}
                 {org.socmed_links.instagram && (
-                  <div className="flex items-center gap-3 text-[#E1306C]">
+                  <div className="flex items-center gap-3 text-[#E1306C] justify-center sm:justify-start">
                     <FaInstagram />
                     <a
                       href={org.socmed_links.instagram}
@@ -312,7 +318,7 @@ const OrgPage = () => {
                   </div>
                 )}
                 {org.socmed_links.linkedin && (
-                  <div className="flex items-center gap-3 text-[#0A66C2]">
+                  <div className="flex items-center gap-3 text-[#0A66C2] justify-center sm:justify-start">
                     <FaLinkedin />
                     <a
                       href={org.socmed_links.linkedin}
@@ -325,7 +331,7 @@ const OrgPage = () => {
                   </div>
                 )}
                 {org.socmed_links.website && (
-                  <div className="flex items-center gap-3 text-gray-700">
+                  <div className="flex items-center gap-3 text-gray-700 dark:text-gray-300 justify-center sm:justify-start">
                     <FaGlobe />
                     <a
                       href={org.socmed_links.website}
@@ -341,10 +347,10 @@ const OrgPage = () => {
             </div>
           )}
 
-          {/* Application Info */}
+          {/* Application Info - Center on mobile, left-align on larger screens */}
           {(org.application_form || org.application_dates) && (
-            <div>
-              <h2 className="text-xl font-semibold text-gray-700 mb-2">
+            <div className="text-center sm:text-left">
+              <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-200 mb-2">
                 Applications
               </h2>
               {org.application_form && (
@@ -352,7 +358,7 @@ const OrgPage = () => {
                   <span className="font-medium">Form:</span>{" "}
                   <a
                     href={org.application_form}
-                    className="text-blue-600 underline"
+                    className="text-blue-600 dark:text-blue-400 underline hover:text-blue-700 dark:hover:text-blue-300"
                     target="_blank"
                     rel="noopener noreferrer"
                   >
@@ -361,7 +367,7 @@ const OrgPage = () => {
                 </p>
               )}
               {org.application_dates && (
-                <p>
+                <p className="text-gray-700 dark:text-gray-300">
                   <span className="font-medium">Dates:</span>{" "}
                   {org.application_dates}
                 </p>
@@ -370,8 +376,8 @@ const OrgPage = () => {
           )}
 
           {/* Featured Photos */}
-          <div>
-            <h2 className="text-xl font-semibold text-gray-700 mb-2">
+          <div className="text-center sm:text-left">
+            <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-200 mb-2">
               Featured Photos
             </h2>
             {featuredPhotos.length > 0 ? (
@@ -387,8 +393,10 @@ const OrgPage = () => {
                 ))}
               </div>
             ) : (
-              <div className="w-full h-36 sm:h-48 border-2 border-dashed border-gray-300 flex justify-center items-center rounded-md">
-                <span className="text-gray-400">No featured photos yet.</span>
+              <div className="w-full h-36 sm:h-48 border-2 border-dashed border-gray-300 dark:border-gray-600 flex justify-center items-center rounded-md">
+                <span className="text-gray-400 dark:text-gray-500">
+                  No featured photos yet.
+                </span>
               </div>
             )}
           </div>
@@ -407,41 +415,60 @@ const OrgPage = () => {
         </div>
       </div>
 
-      {/* Lightbox for photos */}
+      {/* Lightbox for photos - improved responsiveness */}
       {selectedPhotoIndex !== null && (
         <div
-          className="fixed inset-0 backdrop-blur-md bg-black/10 flex items-center justify-center z-50"
+          className="fixed inset-0 backdrop-blur-md bg-black/80 flex items-center justify-center z-[60] px-2 sm:px-0"
           onClick={() => setSelectedPhotoIndex(null)}
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >
           <div
-            className="relative max-w-5xl w-full max-h-[90vh] mx-4 flex items-center justify-center px-4 sm:px-16"
+            className="relative w-full max-w-4xl mx-auto px-6 sm:px-10 md:px-12 flex items-center justify-center"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Previous button - positioned with enough spacing from image */}
             <button
               onClick={handlePrev}
-              className="absolute left-1 sm:left-4 top-1/2 transform -translate-y-1/2 bg-maroon text-white p-2 sm:p-3 rounded-full hover:bg-red-700 z-10"
+              className="absolute left-2 sm:left-4 md:left-6 top-1/2 transform -translate-y-1/2 bg-maroon text-white p-1.5 sm:p-2 md:p-3 rounded-full hover:bg-red-700 z-10"
+              aria-label="Previous photo"
             >
-              <FaChevronLeft />
+              <FaChevronLeft className="text-xs sm:text-sm md:text-base" />
             </button>
 
-            <img
-              src={featuredPhotos[selectedPhotoIndex]}
-              alt={`Featured ${selectedPhotoIndex + 1}`}
-              className="rounded-lg object-contain max-h-[90vh] w-full"
-            />
+            {/* Image container with close button positioned on the image */}
+            <div className="w-full h-full flex items-center justify-center p-2 sm:p-4 px-8 sm:px-12 md:px-16 lg:px-20">
+              <div className="relative">
+                <img
+                  src={featuredPhotos[selectedPhotoIndex]}
+                  alt={`Featured ${selectedPhotoIndex + 1}`}
+                  className="rounded-lg object-contain max-h-[50vh] sm:max-h-[60vh] md:max-h-[70vh] lg:max-h-[80vh] w-auto max-w-[85%] sm:max-w-[90%] md:max-w-full"
+                />
 
+                {/* Close button positioned on the image */}
+                <button
+                  onClick={() => setSelectedPhotoIndex(null)}
+                  className="absolute top-2 right-2 bg-maroon text-white p-1.5 sm:p-2 rounded-full hover:bg-red-700 z-10"
+                  aria-label="Close lightbox"
+                >
+                  <FaTimes className="text-xs sm:text-sm md:text-base" />
+                </button>
+              </div>
+            </div>
+
+            {/* Next button - positioned with enough spacing from image */}
             <button
               onClick={handleNext}
-              className="absolute right-1 sm:right-4 top-1/2 transform -translate-y-1/2 bg-maroon text-white p-2 sm:p-3 rounded-full hover:bg-red-700 z-10"
+              className="absolute right-2 sm:right-4 md:right-6 top-1/2 transform -translate-y-1/2 bg-maroon text-white p-1.5 sm:p-2 md:p-3 rounded-full hover:bg-red-700 z-10"
+              aria-label="Next photo"
             >
-              <FaChevronRight />
+              <FaChevronRight className="text-xs sm:text-sm md:text-base" />
             </button>
+
+            {/* Remove the original close button that was outside the content */}
           </div>
         </div>
       )}
-
       {atTop ? <ActionButton type="home" /> : <ActionButton type="top" />}
     </>
   );

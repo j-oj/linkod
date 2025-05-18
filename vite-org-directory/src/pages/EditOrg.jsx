@@ -44,10 +44,21 @@ const EditOrg = () => {
   const [featuredPhotos, setFeaturedPhotos] = useState([]);
   const [featuredPhotoPreviews, setFeaturedPhotoPreviews] = useState([]);
   const MAX_FEATURED_PHOTOS = 3;
+<<<<<<< HEAD
   const [userEmails, setUserEmails] = useState([]);
   const [selectedUserEmail, setSelectedUserEmail] = useState(null); 
   const [currentAdmin, setCurrentAdmin] = useState(null);
 
+=======
+  const [fieldErrors, setFieldErrors] = useState({});
+
+  // Component for displaying field-specific error messages
+  const ErrorMessage = ({ message }) => {
+    return message ? (
+      <div className="text-red-500 text-xs mt-1 animate-pulse">{message}</div>
+    ) : null;
+  };
+>>>>>>> 0e8725f1c78765f6199e34e3bbec6411a3a0891e
 
   useEffect(() => {
     const fetchData = async () => {
@@ -574,31 +585,112 @@ const EditOrg = () => {
     <>
       <Navbar />
       <div className="max-w-6xl mx-auto mt-30 mb-10 px-6">
-        <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
           {/* Header Section */}
-          <div className="bg-gray-50 px-8 py-6 border-b">
+          <div className="bg-gray-50 dark:bg-gray-700 px-8 py-6 border-b dark:border-gray-600">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-              <h1 className="text-2xl font-semibold text-gray-800">
+              <h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">
                 Organization Profile
               </h1>
-              <div className="text-sm text-gray-600">Hello, {adminName}</div>
+              <div className="text-sm text-gray-600 dark:text-gray-300">
+                Hello, {adminName}
+              </div>
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="p-8">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+
+              // Track form validity
+              let isValid = true;
+
+              // Track error messages
+              const errors = {};
+
+              // Check required fields
+              const form = e.target;
+              const inputs = form.querySelectorAll(
+                "input[required],textarea[required]"
+              );
+              inputs.forEach((input) => {
+                if (!input.value.trim()) {
+                  input.classList.add("border-red-500");
+                  isValid = false;
+                  errors[input.name] = `${input.name.replace(
+                    /_/g,
+                    " "
+                  )} is required`;
+                } else {
+                  input.classList.remove("border-red-500");
+                }
+              });
+
+              // Check category selection separately
+              if (!selectedCategory) {
+                const categoryElement =
+                  document.querySelector(".select__control");
+                if (categoryElement) {
+                  categoryElement.classList.add("border-red-500");
+                  setTimeout(() => {
+                    categoryElement.classList.remove("border-red-500");
+                  }, 1000);
+                }
+                isValid = false;
+                errors.category = "Category is required";
+              }
+
+              // Set field errors
+              setFieldErrors(errors);
+
+              // Scroll to first error if any
+              if (!isValid) {
+                // Find first error element
+                const firstErrorName = Object.keys(errors)[0];
+                const firstErrorElement =
+                  document.querySelector(`[name="${firstErrorName}"]`) ||
+                  (firstErrorName === "category"
+                    ? document.querySelector(".select__control")
+                    : null);
+
+                if (firstErrorElement) {
+                  // Scroll to the element with offset for header
+                  firstErrorElement.scrollIntoView({
+                    behavior: "smooth",
+                    block: "center",
+                  });
+
+                  // Focus the element
+                  setTimeout(() => {
+                    firstErrorElement.focus();
+                  }, 500);
+                }
+
+                // Show toast with error message
+                toast.error("Please fill in all required fields");
+              }
+
+              // Only submit if all validations pass
+              if (isValid) {
+                handleSubmit(e);
+              }
+            }}
+            className="p-8"
+            noValidate
+          >
             <div className="flex flex-col md:flex-row -mx-4">
-              {/* Left Column - Profile Info */}
+              {/* Left Column - Profile Logo (only show on mobile and larger screens) */}
               <div className="w-full md:w-1/3 px-4 mb-8 md:mb-0">
                 <div className="flex flex-col items-center">
                   <div className="relative">
                     <img
                       src={logoPreview || "https://placehold.co/150"}
                       alt="Organization Logo"
-                      className="w-32 h-32 object-cover rounded-full border-4 border-white shadow-md"
+                      className="w-32 h-32 object-cover rounded-full border-4 border-white dark:border-gray-700 shadow-md"
                     />
                     <label
                       htmlFor="logo-upload"
-                      className="absolute bottom-0 right-0 bg-maroon hover:bg-red-800 text-white p-2 rounded-full shadow cursor-pointer"
+                      className="absolute bottom-0 right-0 bg-maroon hover:bg-red-800 text-white p-2 rounded-full shadow cursor-pointer hover:scale-105 transition-transform duration-200"
                     >
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -624,39 +716,12 @@ const EditOrg = () => {
                     </label>
                   </div>
 
-                  <h2 className="mt-4 text-xl font-semibold text-center">
+                  <h2 className="mt-4 text-xl font-semibold text-center dark:text-white">
                     {org.org_name}
                   </h2>
-                  <p className="text-gray-500 text-center">{org.president}</p>
-
-                  {/* About section */}
-                  <div className="mt-8 w-full">
-                    <label className="block font-medium text-gray-700 mb-2">
-                      About
-                    </label>
-                    <textarea
-                      name="about"
-                      value={org.about || ""}
-                      onChange={handleChange}
-                      rows={5}
-                      className="w-full text-gray-700 border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-red-300 focus:border-red-500 transition"
-                      placeholder="Tell us about your organization..."
-                    />
-                  </div>
-
-                  {/* Tags field */}
-                  <div className="mt-6 w-full">
-                    <label className="block font-medium text-gray-700 mb-2">
-                      Tags
-                    </label>
-                    <input
-                      type="text"
-                      value={tagInput}
-                      onChange={(e) => setTagInput(e.target.value)}
-                      className="w-full text-gray-700 border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-red-300 focus:border-red-500 transition"
-                      placeholder="Enter tags separated by commas"
-                    />
-                  </div>
+                  <p className="text-gray-500 dark:text-gray-400 text-center">
+                    {org.president}
+                  </p>
                 </div>
 
                 {/* Dropdown for User Emails */}
@@ -847,47 +912,53 @@ const EditOrg = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Basic Info Fields */}
                   <div>
-                    <label className="block font-medium text-gray-700 mb-2">
-                      Organization Name
+                    <label className="block font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Organization Name <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
                       name="org_name"
                       value={org.org_name || ""}
                       onChange={handleChange}
-                      className="w-full text-gray-700 border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-red-300 focus:border-red-500 transition"
+                      required
+                      className="w-full text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-3 text-sm focus:ring-2 focus:ring-red-700 focus:border-red-500 transition placeholder:text-gray-400 dark:placeholder:text-gray-500"
                     />
+                    <ErrorMessage message={fieldErrors.org_name} />
                   </div>
 
                   <div>
-                    <label className="block font-medium text-gray-700 mb-2">
-                      President
+                    <label className="block font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      President <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
                       name="president"
                       value={org.president || ""}
                       onChange={handleChange}
-                      className="w-full text-gray-700 border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-red-300 focus:border-red-500 transition"
+                      required
+                      className="w-full text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-3 text-sm focus:ring-2 focus:ring-red-700 focus:border-red-500 transition placeholder:text-gray-400 dark:placeholder:text-gray-500"
                     />
+                    <ErrorMessage message={fieldErrors.president} />
                   </div>
 
                   <div>
-                    <label className="block font-medium text-gray-700 mb-2">
-                      Email
+                    <label className="block font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Email <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="email"
                       name="org_email"
                       value={org.org_email || ""}
                       onChange={handleChange}
-                      className="w-full text-gray-700 border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-red-300 focus:border-red-500 transition"
+                      required
+                      className="w-full text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-3 text-sm focus:ring-2 focus:ring-red-700 focus:border-red-500 transition placeholder:text-gray-400 dark:placeholder:text-gray-500"
                     />
+                    <ErrorMessage message={fieldErrors.org_email} />
                   </div>
 
                   <div>
-                    <label className="block font-medium text-gray-700 mb-2">
-                      Category
+                    <label className="block font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Category <span className="text-red-500">*</span>
                     </label>
                     <Select
                       options={categories.map((cat) => ({
@@ -907,58 +978,63 @@ const EditOrg = () => {
                       onChange={(selectedOption) =>
                         setSelectedCategory(selectedOption?.value || null)
                       }
-                      className="text-sm"
                       classNamePrefix="select"
                       placeholder="Select category"
                       isClearable
                       styles={{
-                        control: (base) => ({
+                        control: (base, state) => ({
                           ...base,
-                          borderColor: "#e2e8f0",
-                          borderRadius: "0.5rem",
-                          padding: "2px",
+                          backgroundColor: "var(--input-bg)",
+                          borderColor: state.isFocused
+                            ? "#ef4444"
+                            : "var(--border-color)",
+                          color: "var(--text-color)",
+                          borderRadius: "0.6rem",
                           boxShadow: "none",
-                          transition: "border-color 0.2s ease",
-                          "&:hover": {
-                            borderColor: "#cbd5e0",
-                          },
+                          padding: "0.25rem 0.5rem",
+                          fontSize: "0.875rem",
+                          transition: "all 0.2s ease-in-out",
+                        }),
+                        singleValue: (base) => ({
+                          ...base,
+                          color: "var(--text-color)",
+                        }),
+                        input: (base) => ({
+                          ...base,
+                          color: "var(--text-color)",
+                        }),
+                        menu: (base) => ({
+                          ...base,
+                          backgroundColor: "var(--dropdown-bg)",
+                          color: "var(--text-color)",
+                          borderRadius: "0.5rem",
+                          overflow: "hidden",
                         }),
                         option: (base, state) => ({
                           ...base,
                           backgroundColor: state.isSelected
-                            ? "maroon"
-                            : state.isFocused
-                            ? "#ffdbdb"
-                            : "white",
-                          color: state.isSelected
-                            ? "white"
-                            : state.isFocused
                             ? "#7f1d1d"
-                            : "#374151",
+                            : state.isFocused
+                            ? "#b91c1c"
+                            : "var(--dropdown-bg)",
+                          color:
+                            state.isSelected || state.isFocused
+                              ? "white"
+                              : "var(--text-color)",
                           cursor: "pointer",
-                          transition:
-                            "background-color 0.2s ease, color 0.2s ease",
-                          "&:active": {
-                            backgroundColor: "maroon",
-                            color: "white",
-                          },
+                          padding: "0.5rem 1rem",
                         }),
-                        menu: (base) => ({
+                        placeholder: (base) => ({
                           ...base,
-                          borderRadius: "0.5rem",
-                          marginTop: "4px",
-                          boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
-                        }),
-                        menuList: (base) => ({
-                          ...base,
-                          padding: "0",
+                          color: "var(--placeholder-color)",
                         }),
                       }}
                     />
+                    <ErrorMessage message={fieldErrors.category} />
                   </div>
 
                   <div>
-                    <label className="block font-medium text-gray-700 mb-2">
+                    <label className="block font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Application Form URL
                     </label>
                     <input
@@ -966,17 +1042,17 @@ const EditOrg = () => {
                       name="application_form"
                       value={org.application_form || ""}
                       onChange={handleChange}
-                      className="w-full text-gray-700 border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-red-300 focus:border-red-500 transition"
+                      className="w-full text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-3 text-sm focus:ring-2 focus:ring-red-300 focus:border-red-500 transition"
                     />
                   </div>
 
                   <div>
-                    <label className="block font-medium text-gray-700 mb-2">
-                      Application Dates
+                    <label className="block font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Application Date Range
                     </label>
                     <div className="flex gap-2">
                       <DatePicker
-                        calendarClassName="my-datepicker"
+                        calendarClassName="my-datepicker dark:bg-gray-800 dark:text-white"
                         selected={org.startDate}
                         onChange={(date) =>
                           handleChange({
@@ -987,10 +1063,10 @@ const EditOrg = () => {
                         startDate={org.startDate}
                         endDate={org.endDate}
                         placeholderText="Start date"
-                        className="w-full text-gray-700 border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-red-300 focus:border-red-500 transition"
+                        className="w-full text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-3 text-sm focus:ring-2 focus:ring-red-300 focus:border-red-500 transition"
                       />
                       <DatePicker
-                        calendarClassName="my-datepicker"
+                        calendarClassName="my-datepicker dark:bg-gray-800 dark:text-white"
                         selected={org.endDate}
                         onChange={(date) =>
                           handleChange({
@@ -1002,15 +1078,47 @@ const EditOrg = () => {
                         endDate={org.endDate}
                         minDate={org.startDate}
                         placeholderText="End date"
-                        className="w-full text-gray-700 border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-red-300 focus:border-red-500 transition"
+                        className="w-full text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-3 text-sm focus:ring-2 focus:ring-red-300 focus:border-red-500 transition"
                       />
                     </div>
                   </div>
                 </div>
 
+                {/* About and Tags Section - Moved from left column to right column for smaller screens */}
+                <div className="mt-6 w-full">
+                  <label className="block font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    About
+                  </label>
+                  <textarea
+                    name="about"
+                    value={org.about || ""}
+                    onChange={handleChange}
+                    rows={5}
+                    className="w-full text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-3 text-sm focus:ring-2 focus:ring-red-700 focus:border-red-500 transition placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                    placeholder="Tell us about your organization..."
+                  />
+                </div>
+
+                {/* Tags field */}
+                <div className="mt-6 w-full">
+                  <label className="block font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Tags
+                  </label>
+                  <input
+                    type="text"
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    className="w-full text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-3 text-sm focus:ring-2 focus:ring-red-700 focus:border-red-500 transition placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                    placeholder="Enter tags separated by commas"
+                  />
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Each tag is separated by a comma
+                  </p>
+                </div>
+
                 {/* Social Media Section */}
                 <div className="mt-8">
-                  <h3 className="font-medium text-gray-800 mb-4">
+                  <h3 className="font-medium text-gray-800 dark:text-gray-200 mb-4">
                     Social Media Links
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1021,7 +1129,9 @@ const EditOrg = () => {
                         placeholder: "Facebook URL",
                       },
                       {
-                        icon: <FaXTwitter className="text-grey-700" />,
+                        icon: (
+                          <FaXTwitter className="text-grey-700 dark:text-gray-400" />
+                        ),
                         name: "twitter",
                         placeholder: "X URL",
                       },
@@ -1036,14 +1146,16 @@ const EditOrg = () => {
                         placeholder: "LinkedIn URL",
                       },
                       {
-                        icon: <FaGlobe className="text-gray-600" />,
+                        icon: (
+                          <FaGlobe className="text-gray-600 dark:text-gray-400" />
+                        ),
                         name: "website",
                         placeholder: "Website URL",
                       },
                     ].map(({ icon, name, placeholder }) => (
                       <div
                         key={name}
-                        className="flex items-center gap-3 bg-gray-50 rounded-lg p-3 border border-gray-200"
+                        className="flex items-center gap-3 bg-gray-50 dark:bg-gray-700 rounded-lg p-3 border border-gray-200 dark:border-gray-600"
                       >
                         <span className="flex-shrink-0">{icon}</span>
                         <input
@@ -1056,7 +1168,7 @@ const EditOrg = () => {
                               [name]: e.target.value,
                             })
                           }
-                          className="w-full bg-transparent border-0 focus:ring-0 p-0 text-sm text-gray-700 placeholder-gray-400"
+                          className="w-full bg-transparent border-0 focus:ring-0 p-0 text-sm text-gray-700 dark:text-gray-300 placeholder-gray-400 dark:placeholder-gray-500"
                         />
                       </div>
                     ))}
@@ -1064,9 +1176,9 @@ const EditOrg = () => {
 
                   {/* Featured Photos Section */}
                   <div className="mt-8">
-                    <h3 className="font-medium text-gray-800 mb-4">
+                    <h3 className="font-medium text-gray-800 dark:text-gray-200 mb-4">
                       Featured Photos{" "}
-                      <span className="text-sm text-gray-500">
+                      <span className="text-sm text-gray-500 dark:text-gray-400">
                         ({existingPhotos.length + photoPreviews.length}/
                         {MAX_FEATURED_PHOTOS} max)
                       </span>
@@ -1080,7 +1192,7 @@ const EditOrg = () => {
                           <img
                             src={url}
                             alt={`Featured photo ${index + 1}`}
-                            className="w-full h-40 object-cover rounded-lg border border-gray-200"
+                            className="w-full h-40 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
                           />
                           <button
                             type="button"
@@ -1098,12 +1210,11 @@ const EditOrg = () => {
                           <img
                             src={url}
                             alt={`New photo ${index + 1}`}
-                            className="w-full h-40 object-cover rounded-lg border border-gray-200"
+                            className="w-full h-40 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
                           />
                           <button
                             type="button"
                             onClick={() => {
-                              // You'll need to implement this function to remove from photoPreviews array
                               const newPreviews = [...photoPreviews];
                               newPreviews.splice(index, 1);
                               setPhotoPreviews(newPreviews);
@@ -1118,9 +1229,9 @@ const EditOrg = () => {
                       {/* Add Photo Placeholder */}
                       {existingPhotos.length + photoPreviews.length <
                         MAX_FEATURED_PHOTOS && (
-                        <label className="border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center h-40 cursor-pointer hover:border-red-300 transition">
-                          <FaImage className="text-gray-400 text-2xl mb-2" />
-                          <span className="text-sm text-gray-500">
+                        <label className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex flex-col items-center justify-center h-40 cursor-pointer hover:border-red-300 dark:hover:border-red-700 transition">
+                          <FaImage className="text-gray-400 dark:text-gray-500 text-2xl mb-2" />
+                          <span className="text-sm text-gray-500 dark:text-gray-400">
                             Add Photos
                           </span>
                           <input
@@ -1130,13 +1241,6 @@ const EditOrg = () => {
                             onChange={handleFeaturedPhotosChange}
                             className="hidden"
                           />
-                          <button
-                            type="button"
-                            onClick={() => removeNewPhoto(index)}
-                            className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600 transition"
-                          >
-                            <FaTrash className="text-xs" />
-                          </button>
                         </label>
                       )}
                     </div>
@@ -1148,7 +1252,7 @@ const EditOrg = () => {
                   <button
                     type="button"
                     onClick={() => navigate(`/orgs/${slug}`)}
-                    className="w-full sm:w-auto px-6 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition"
+                    className="w-full sm:w-auto px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition"
                   >
                     Cancel
                   </button>
