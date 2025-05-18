@@ -305,15 +305,16 @@ const Homepage = () => {
           className="relative"
         >
           <div className="text-center left-0 text-white mt-20 px-5 py-5 custom-text-shadow">
-            <h1 className="text-4xl font-bold text-mustard mb-2.5 lg:text-5xl">
+            <h1 className="text-4xl font-bold text-white mb-2.5 lg:text-5xl">
               {" "}
-              Find your UP Mindanao community here!{" "}
+              <span className="text-mustard">Connect</span> with your UP Mindanao Community now!{" "}
             </h1>
             <h2 className="text-2xl italic">
               {" "}
               An online directory for student-led campus organizations.{" "}
             </h2>
           </div>
+          <span className="absolute bottom-3 left-5 text-sm z-10 text-white">&copy; University of the Philippines Mindanao </span>
         </div>
       </section>
 
@@ -444,12 +445,12 @@ const Homepage = () => {
                   <Link
                     key={org.id || org.org_id}
                     to={`/orgs/${org.slug}`}
-                    className={`org-card relative bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-all duration-300 rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-700 group hover:scale-103 ${
+                    className={`org-card relative bg-white dark:bg-gray-800 shadow-sm hover:shadow-lg transition-all duration-300 rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-700 group hover:scale-103 dark:hover:border-white ${
                       isAdmin ? "ring-4 ring-yellow-400 " : ""
                     }`}
                   >
                     <div className="h-1.5 bg-maroon"></div>
-                    <div className="p-5">
+                    <div className="p-8"> {/*added padding to make the cards look bigger*/}
                       {isAdmin && (
                         <div
                           className="absolute top-2 right-2 bg-yellow-400 text-maroon rounded-full p-1.5"
@@ -469,7 +470,7 @@ const Homepage = () => {
                             className="w-16 h-16 object-cover"
                           />
                         </div>
-                        <h2 className="font-medium text-base text-center text-gray-800 dark:text-white truncate max-w-full">
+                        <h2 className="font-bold text-base text-center text-gray-800 dark:text-white truncate max-w-full">
                           {org.org_name}
                         </h2>
                         <span className="mt-2 inline-block px-3 py-1 bg-gray-100 dark:bg-gray-700 text-xs rounded-full text-gray-600 dark:text-gray-300">
