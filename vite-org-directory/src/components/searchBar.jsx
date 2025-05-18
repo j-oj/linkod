@@ -7,7 +7,7 @@ export default function SearchBar({ value, onChange, placeholder }) {
       <input
         type="text"
         placeholder={placeholder}
-        className="w-full focus:outline-none text-sm bg-transparent placeholder-gray-400 dark:placeholder-gray-400"
+        className="w-full dark:text-white focus:outline-none text-sm bg-transparent placeholder-gray-400 dark:placeholder-gray-400"
         value={value}
         onChange={onChange}
       />

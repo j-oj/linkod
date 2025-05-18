@@ -396,8 +396,8 @@ const AddOrg = () => {
       <div className="max-w-6xl mx-auto mt-30 mb-10 px-6">
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
           {/* Header Section */}
-          <div className="bg-gray-50 dark:bg-gray-700 px-8 py-6 border-b dark:border-gray-600">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+          <div className="bg-gray-50 dark:bg-gray-700 px-8 py-6 border-b dark:border-gray-600 flex justify-center">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 w-full max-w-5xl text-center sm:text-left">
               <h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">
                 Add New Organization
               </h1>
@@ -664,6 +664,9 @@ const AddOrg = () => {
                   <label className="block font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Tags
                   </label>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Each tag is separated by a comma
+                  </p>
                   <input
                     type="text"
                     value={tagInput}
@@ -671,9 +674,6 @@ const AddOrg = () => {
                     className="w-full text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-3 text-sm focus:ring-2 focus:ring-red-300 focus:border-red-500 transition"
                     placeholder="Enter tags separated by commas"
                   />
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Each tag is separated by a comma
-                  </p>
                 </div>
 
                 {/* Featured Photos Section */}

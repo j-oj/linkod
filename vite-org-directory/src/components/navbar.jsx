@@ -167,12 +167,25 @@ const Navbar = () => {
 
   return (
     <div className="fixed top-0 left-0 w-full z-50 bg-maroon text-white px-6 py-4 flex justify-between items-center shadow-sm">
-      <div className="flex items-center gap-2"> 
-        <img src="/templogo.png" alt="logo" className="w-12 md:w-14" />
-        <Link to="/" className="flex items-center">
-          <span className="text-xl md:text-2xl font-bold">Link</span>  {/* changed org name */}
-          <span className="text-xl md:text-2xl font-bold text-yellow-400">
-            OD </span>
+      <div className="flex items-center gap-2">
+        <Link to="/">
+          {" "}
+          <img
+            src="/templogo.png"
+            alt="logo"
+            className="w-12 md:w-14 hover:scale-105 transition-transform duration-300"
+          />
+        </Link>
+        <Link to="/" className="flex flex-col leading-tight">
+          <div className="flex items-center hover:scale-105 transition-transform duration-300">
+            <span className="text-xl md:text-2xl font-bold">Link</span>
+            <span className="text-xl md:text-2xl font-bold text-yellow-400">
+              OD
+            </span>
+          </div>
+          <span className="text-xs md:text-sm text-gray-200 tracking-wide">
+            Organizations Directory
+          </span>
         </Link>
       </div>
 
