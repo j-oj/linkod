@@ -47,11 +47,15 @@ const ProtectedRoutes = ({ allowedRole }) => {
   }, [allowedRole]);
 
   if (isAllowed === null) {
-    return (
-      <>
-        <Loading />
-      </>
+    return <Loading />;
+  }
+
+  // Redirect to login if the user is not allowed
+  if (!isAllowed) {
+    console.error(
+      `Access denied. Current role: ${currentRole}, Allowed role: ${allowedRole}`
     );
+    return <Navigate to="/" state={{ from: location }} replace />;
   }
 
   console.log("Current role:", currentRole);
