@@ -43,6 +43,7 @@ export default function SAdminDashboard() {
   // invite
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
+  const [selectedRole, setSelectedRole] = useState("");
 
   useEffect(() => {
     fetchCurrentAdmin();
@@ -158,46 +159,137 @@ export default function SAdminDashboard() {
       setModalOpen(false);
       return;
     }
-
+  
+    if (actionType === "remove-admin") {
+      console.log("Removing admin:", selectedItem);
+    
+      try {
+        // 1. Delete admin from the `admin` table
+        const { error: adminDeleteError } = await supabase
+          .from("admin")
+          .delete()
+          .eq("admin_id", selectedItem.admin_id);
+    
+        if (adminDeleteError) {
+          console.error("Failed to delete admin:", adminDeleteError);
+          throw new Error("Failed to delete admin.");
+        }
+    
+        // 2. Delete admin's roles from the `user_roles` table
+        const { error: userRolesDeleteError } = await supabase
+          .from("user_roles")
+          .delete()
+          .eq("user_id", selectedItem.admin_id);
+    
+        if (userRolesDeleteError) {
+          console.error("Failed to delete admin roles:", userRolesDeleteError);
+          throw new Error("Failed to delete admin roles.");
+        }
+    
+        // 3. Delete admin from `auth.users` using the Edge Function
+        try {
+          const {
+            data: { session },
+            error: sessionError,
+          } = await supabase.auth.getSession();
+    
+          if (sessionError || !session?.access_token) {
+            throw new Error("Authentication required to delete user accounts.");
+          }
+    
+          const accessToken = session.access_token;
+    
+          const response = await fetch(
+            "https://ruigijbnxjgbndetnvhd.supabase.co/functions/v1/delete-user",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${accessToken}`,
+              },
+              body: JSON.stringify({
+                userId: selectedItem.admin_id,
+              }),
+            }
+          );
+    
+          const result = await response.json();
+    
+          if (!response.ok) {
+            console.error(
+              `Failed to delete admin ${selectedItem.admin_id} from auth.users:`,
+              result.message
+            );
+            throw new Error(result.message || "Failed to delete admin.");
+          }
+    
+          console.log(`Admin ${selectedItem.admin_id} deleted from auth.users.`);
+        } catch (authDeleteError) {
+          console.error(
+            "Error deleting admin from auth.users via Edge Function:",
+            authDeleteError
+          );
+          throw new Error("Failed to delete admin from authentication system.");
+        }
+    
+        // 4. Update the `admins` state to remove the deleted admin
+        setAdmins((prevAdmins) =>
+          prevAdmins.filter((admin) => admin.admin_id !== selectedItem.admin_id)
+        );
+    
+        setAlert({
+          show: true,
+          message: "Admin removed successfully.",
+          type: "success",
+        });
+      } catch (error) {
+        console.error("Error removing admin:", error);
+        setAlert({
+          show: true,
+          message: `Failed to remove admin: ${error.message}`,
+          type: "error",
+        });
+      } finally {
+        setModalOpen(false);
+      }
+    }
+    
     try {
       if (actionType === "delete-org") {
         console.log("Deleting org:", selectedItem);
-
+  
         // 1. Check if organization exists
         const { data: orgCheck, error: orgCheckError } = await supabase
           .from("organization")
           .select("org_id")
           .eq("org_id", selectedItem.org_id)
           .maybeSingle();
-
+  
         if (orgCheckError) {
           console.error("Organization check error:", orgCheckError);
           throw new Error("Organization not found.");
         }
-
+  
         // 2. Get all admins of this organization
         const { data: orgAdmins, error: orgAdminsError } = await supabase
           .from("admin")
           .select("admin_id")
           .eq("org_id", selectedItem.org_id);
-
+  
         if (orgAdminsError) {
           console.error("Error fetching organization admins:", orgAdminsError);
           throw new Error("Failed to identify organization admins.");
         }
-
-        // Note: We're not deleting user_roles entries for admins
-        // Based on your database structure, these should be preserved
-        // as they define whether users are admins or superadmins
+  
         const adminIds = orgAdmins?.map((admin) => admin.admin_id) || [];
-
-        if (orgAdmins && orgAdmins.length > 0) {
+  
+        if (adminIds.length > 0) {
           // 3. Delete admin login records for these admins
           const { error: loginRecordsDeleteError } = await supabase
             .from("admin_login_record")
             .delete()
             .in("admin_id", adminIds);
-
+  
           if (loginRecordsDeleteError) {
             console.error(
               "Failed to delete related login records:",
@@ -205,27 +297,24 @@ export default function SAdminDashboard() {
             );
             // Continue with deletion even if this fails
           }
-
+  
           // 4. Delete the admins associated with this organization
-          // Note: This only removes them from the admin table, not from user_roles
           const { error: adminsDeleteError } = await supabase
             .from("admin")
             .delete()
             .eq("org_id", selectedItem.org_id);
-
+  
           if (adminsDeleteError) {
-            console.error(
-              "Failed to delete related admins:",
-              adminsDeleteError
-            );
+            console.error("Failed to delete related admins:", adminsDeleteError);
             // Continue with deletion even if this fails
           }
-          // 3.5. Delete user_roles entries for these admins
+  
+          // 5. Delete user_roles entries for these admins
           const { error: userRolesDeleteError } = await supabase
             .from("user_roles")
             .delete()
             .in("user_id", adminIds);
-
+  
           if (userRolesDeleteError) {
             console.error(
               "Failed to delete related user_roles:",
@@ -233,15 +322,66 @@ export default function SAdminDashboard() {
             );
             // Continue with deletion even if this fails
           }
+  
+          // 6. Delete admins from auth.users using the Edge Function
+          try {
+            // Get current session to extract access token
+            const {
+              data: { session },
+              error: sessionError,
+            } = await supabase.auth.getSession();
+  
+            if (sessionError || !session?.access_token) {
+              throw new Error(
+                "Authentication required to delete user accounts."
+              );
+            }
+  
+            const accessToken = session.access_token;
+  
+            // Call the Edge Function for each admin
+            for (const adminId of adminIds) {
+              const response = await fetch(
+                "https://ruigijbnxjgbndetnvhd.supabase.co/functions/v1/delete-user",
+                {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${accessToken}`,
+                  },
+                  body: JSON.stringify({
+                    userId: adminId,
+                  }),
+                }
+              );
+  
+              const result = await response.json();
+  
+              if (!response.ok) {
+                console.error(
+                  `Failed to delete admin ${adminId} from auth.users:`,
+                  result.message
+                );
+                // Log the error but continue with the deletion process
+              } else {
+                console.log(`Admin ${adminId} deleted from auth.users.`);
+              }
+            }
+          } catch (authDeleteError) {
+            console.error(
+              "Error deleting admins from auth.users via Edge Function:",
+              authDeleteError
+            );
+            // Continue with deletion even if this fails
+          }
         }
-
-        // 6. Delete related org_tag entries (junction table only)
-        // This preserves the tags themselves in the tag table
+  
+        // 7. Delete related org_tag entries (junction table only)
         const { error: orgTagDeleteError } = await supabase
           .from("org_tag")
           .delete()
           .eq("org_id", selectedItem.org_id);
-
+  
         if (orgTagDeleteError) {
           console.error(
             "Failed to delete related org_tag entries:",
@@ -249,19 +389,19 @@ export default function SAdminDashboard() {
           );
           // Continue with deletion even if this fails
         }
-
-        // 7. Delete organization
+  
+        // 8. Delete the organization itself
         const { error: orgDeleteError } = await supabase
           .from("organization")
           .delete()
           .eq("org_id", selectedItem.org_id);
-
+  
         if (orgDeleteError) {
           console.error("Failed to delete organization:", orgDeleteError);
           throw new Error("Failed to delete organization.");
         }
-
-        // 8. Update local state
+  
+        // 9. Update local state
         setOrganizations(
           organizations.filter((org) => org.org_id !== selectedItem.org_id)
         );
@@ -270,129 +410,9 @@ export default function SAdminDashboard() {
           message: "Organization deleted successfully.",
           type: "success",
         });
-
+  
         // Refresh data to update all tabs
         fetchData();
-      } // Replace the admin removal code in handleConfirm function with this implementation:
-      else if (actionType === "remove-admin") {
-        try {
-          // First check if admin exists
-          const { data: adminCheck, error: adminCheckError } = await supabase
-            .from("admin")
-            .select("admin_id")
-            .eq("admin_id", selectedItem.admin_id)
-            .maybeSingle();
-
-          if (adminCheckError) {
-            console.error("Admin check error:", adminCheckError);
-            throw new Error("Admin not found.");
-          }
-
-          // 1. Delete admin login records first (foreign key relationship)
-          const { error: loginRecordsDeleteError } = await supabase
-            .from("admin_login_record")
-            .delete()
-            .eq("admin_id", selectedItem.admin_id);
-
-          if (loginRecordsDeleteError) {
-            console.error(
-              "Login records deletion error:",
-              loginRecordsDeleteError
-            );
-            // Continue with deletion even if this fails, but log it
-          }
-
-          // 2. Delete from user_roles table
-          const { error: userRolesDeleteError } = await supabase
-            .from("user_roles")
-            .delete()
-            .eq("user_id", selectedItem.admin_id);
-
-          if (userRolesDeleteError) {
-            console.error("Failed to delete user_roles:", userRolesDeleteError);
-            // Continue with deletion even if this fails, but log it
-          }
-
-          // 3. Delete from admin table
-          const { error: adminDeleteError } = await supabase
-            .from("admin")
-            .delete()
-            .eq("admin_id", selectedItem.admin_id);
-
-          if (adminDeleteError) {
-            console.error("Admin removal error:", adminDeleteError);
-            throw new Error("Failed to remove admin from admin table.");
-          }
-
-          // 4. Call the delete_user RPC function with proper error handling
-          // Using the Edge Function approach as a more reliable method
-          try {
-            // Get current session to extract access token
-            const {
-              data: { session },
-              error: sessionError,
-            } = await supabase.auth.getSession();
-
-            if (sessionError || !session?.access_token) {
-              throw new Error(
-                "Authentication required to delete user account."
-              );
-            }
-
-            // Call the edge function to delete the user from auth.users
-            const response = await fetch(
-              "https://ruigijbnxjgbndetnvhd.supabase.co/functions/v1/delete-user",
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${session.access_token}`,
-                },
-                body: JSON.stringify({
-                  userId: selectedItem.admin_id,
-                }),
-              }
-            );
-
-            const result = await response.json();
-
-            if (!response.ok) {
-              throw new Error(result.message || "Error deleting user account");
-            }
-
-            // Success!
-            setAlert({
-              show: true,
-              message: "Admin removed successfully from all systems!",
-              type: "success",
-            });
-          } catch (authDeleteError) {
-            console.error("Auth user deletion error:", authDeleteError);
-            setAlert({
-              show: true,
-              message:
-                "Admin removed from organization but could not delete authentication record. Manual cleanup may be required.",
-              type: "warning",
-            });
-          }
-
-          // Update UI by removing the admin from the list
-          setAdmins(
-            admins.filter((admin) => admin.admin_id !== selectedItem.admin_id)
-          );
-
-          // Refresh login records data if needed
-          if (activeTab === "Admin Login Record") {
-            fetchData();
-          }
-        } catch (error) {
-          console.error("Error removing admin:", error);
-          setAlert({
-            show: true,
-            message: `Failed to remove admin: ${error.message}`,
-            type: "error",
-          });
-        }
       }
     } catch (error) {
       console.error("Error performing action:", error);
@@ -641,6 +661,7 @@ export default function SAdminDashboard() {
                           <td className="px-4 py-2 text-center">
                             <button
                               onClick={() => {
+                                console.log("Selected Admin: ", admin)
                                 setActionType("remove-admin");
                                 setSelectedItem(admin);
                                 setModalOpen(true);
@@ -758,16 +779,34 @@ export default function SAdminDashboard() {
               value={inviteEmail}
               onChange={(e) => setInviteEmail(e.target.value)}
             />
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Select Role
+              </label>
+              <select
+                value={selectedRole}
+                onChange={(e) => setSelectedRole(e.target.value)}
+                className="w-full border px-3 py-2 rounded"
+              >
+                <option value="" disabled>
+                  Select a role
+                </option>
+                <option value="admin">Admin</option>
+                <option value="superadmin">Super Admin</option>
+              </select>
+            </div>
             <div className="flex justify-end space-x-2">
               <button
                 className="px-4 py-2 bg-gray-300 rounded dark:bg-gray-700 dark:text-white hover:bg-gray-400 dark:hover:bg-gray-600 transition-all duration-200"
                 onClick={() => {
                   setInviteModalOpen(false);
                   setInviteEmail("");
+                  setSelectedRole(""); // Reset role selection
                 }}
               >
                 Cancel
               </button>
+               
               <button
                 className="px-4 py-2 bg-maroon text-white rounded hover:bg-red-700"
                 onClick={async () => {
@@ -775,6 +814,15 @@ export default function SAdminDashboard() {
                     setAlert({
                       show: true,
                       message: "Please enter a valid email.",
+                      type: "error",
+                    });
+                    return;
+                  }
+
+                  if (!selectedRole) {
+                    setAlert({
+                      show: true,
+                      message: "Please select a role.",
                       type: "error",
                     });
                     return;
@@ -810,11 +858,41 @@ export default function SAdminDashboard() {
                     const result = await response.json();
 
                     if (response.ok) {
+                      // Wait for the user to be created in auth_user_view
+                      const { data: userData, error: userError } = await supabase
+                        .from("auth_user_view")
+                        .select("id")
+                        .eq("email", inviteEmail.trim().toLowerCase())
+                        .single();
+
+                      if (userError || !userData) {
+                        throw new Error(
+                          userError?.message || "Failed to retrieve user UID."
+                        );
+                      }
+
+                      // Insert the UID and role into the user_roles table
+                      const { error: roleInsertError } = await supabase
+                        .from("user_roles")
+                        .insert([
+                          {
+                            user_id: userData.id, // UID from auth_user_view
+                            role: selectedRole, // Selected role (admin or superadmin)
+                          },
+                        ]);
+
+                      if (roleInsertError) {
+                        throw new Error(
+                          roleInsertError.message || "Failed to assign role."
+                        );
+                      }
+
                       setAlert({
                         show: true,
-                        message: "Invite sent successfully.",
+                        message: "Invite sent! Role is assigned successfuly.",
                         type: "success",
                       });
+
                       setInviteModalOpen(false);
                       setInviteEmail("");
                     } else {

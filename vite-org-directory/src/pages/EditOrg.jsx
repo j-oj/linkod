@@ -49,7 +49,6 @@ const EditOrg = () => {
   const [currentAdmin, setCurrentAdmin] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
   const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
-  const [replaceConfirmOpen, setReplaceConfirmOpen] = useState(false);
   const [alert, setAlert] = useState({
     show: false,
     message: "",
@@ -147,7 +146,6 @@ const EditOrg = () => {
           .from("featured_photos")
           .select("photo_url")
           .eq("org_id", orgData.org_id);
-
         if (!photoError && photoData) {
           setExistingPhotos(photoData.map((p) => p.photo_url));
         }
@@ -205,7 +203,7 @@ const EditOrg = () => {
       try {
         const { data: adminData, error: adminError } = await supabase
           .from("admin")
-          .select("admin_name, admin_email")
+          .select("admin_id, admin_name, admin_email")
           .eq("org_id", org?.org_id)
           .maybeSingle();
 
@@ -262,6 +260,81 @@ const EditOrg = () => {
       reader.readAsDataURL(logoFile);
     }
   }, [logoFile]);
+
+  const handleAddAdmin = async () => {
+    if (!selectedUserEmail) {
+      showAlert("Please select a user to add as admin.", "error");
+      return;
+    }
+  
+    try {
+      // Check if the user is already assigned to another organization
+      const { data: existingAdmin, error: existingAdminError } = await supabase
+        .from("admin")
+        .select("org_id")
+        .eq("admin_email", selectedUserEmail)
+        .maybeSingle();   
+  
+      if (existingAdminError) {
+        throw new Error("Failed to check if the user is already an admin.");
+      }
+  
+      if (existingAdmin) {
+        showAlert("This user is already an admin of another organization.", "error");
+        return;
+      }
+  
+      // Prevent adding the current admin as the new admin
+      if (currentAdmin?.admin_email === selectedUserEmail) {
+        showAlert("The selected user is already the current admin.", "error");
+        return;
+      }
+  
+      // Fetch user details
+      const { data: userData, error: userError } = await supabase
+        .from("auth_user_view")
+        .select("id, display_name, created_at")
+        .eq("email", selectedUserEmail)
+        .single();
+  
+      if (userError || !userData) {
+        throw new Error(userError?.message || "Failed to retrieve user details.");
+      }
+  
+      const { id: admin_id, display_name: admin_name, created_at: admin_created_at } = userData;
+  
+      // Insert admin into the `admin` table
+      const { error: insertError } = await supabase.from("admin").insert([
+        {
+          admin_id,
+          admin_email: selectedUserEmail,
+          admin_name,
+          org_id: org.org_id,
+          admin_created_at,
+        },
+      ]);
+  
+    
+      if (insertError) {
+        // Check for unique constraint violation
+        if (insertError.message.includes("unique_org_admin")) {
+          showAlert("This organization already has an admin assigned.", "error");
+          return;
+        }
+  
+        throw new Error(insertError.message || "Failed to add admin.");
+      }
+  
+      showAlert("Admin added successfully!", "success");
+      setSelectedUserEmail(null);
+      setTimeout(() => {
+        window.location.reload();
+      }, 3000);
+    } catch (error) {
+      console.error("Error adding admin:", error);
+      showAlert(`Error: ${error.message}`, "error");
+    }
+  };
 
   const handleLogoChange = (e) => {
     if (e.target.files && e.target.files[0]) {
@@ -793,7 +866,7 @@ const EditOrg = () => {
                       {/* Admin Email Dropdown */}
                       <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
                         <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                          Add or Replace Admin
+                          Assign an admin to this org
                         </label>
                         <Select
                           options={userEmails}
@@ -864,108 +937,11 @@ const EditOrg = () => {
                           <button
                             type="button"
                             className="flex-1 px-3 py-2 bg-maroon text-white text-sm font-medium rounded-md hover:bg-red-700 transition"
-                            onClick={async () => {
-                              if (!selectedUserEmail) {
-                                setAlert({
-                                  show: true,
-                                  message:
-                                    "Please select a user to add as admin.",
-                                  type: "error",
-                                });
-                                return;
-                              }
-
-                              try {
-                                const { data: userData, error: userError } =
-                                  await supabase
-                                    .from("auth_user_view")
-                                    .select("id, display_name, created_at")
-                                    .eq("email", selectedUserEmail)
-                                    .single();
-
-                                if (userError || !userData) {
-                                  throw new Error(
-                                    userError?.message ||
-                                      "Failed to retrieve user details."
-                                  );
-                                }
-
-                                const {
-                                  id: admin_id,
-                                  display_name: admin_name,
-                                  created_at: admin_created_at,
-                                } = userData;
-
-                                const { error: insertError } = await supabase
-                                  .from("admin")
-                                  .insert([
-                                    {
-                                      admin_id,
-                                      admin_email: selectedUserEmail,
-                                      admin_name,
-                                      org_id: org.org_id,
-                                      admin_created_at,
-                                    },
-                                  ]);
-                                await supabase
-                                  .from("user_roles") // or whatever your user metadata table is called
-                                  .insert(
-                                    [
-                                      {
-                                        user_id: admin_id,
-                                        role: "admin",
-                                      },
-                                    ],
-                                    { onConflict: "user_id" }
-                                  ); // avoids duplicate insertions
-
-                                if (insertError)
-                                  throw new Error(
-                                    insertError.message ||
-                                      "Failed to add admin."
-                                  );
-
-                                setAlert({
-                                  show: true,
-                                  message:
-                                    "Admin added successfully! Refreshing to see changes...",
-                                  type: "success",
-                                });
-                                setSelectedUserEmail(null);
-                                setTimeout(() => {
-                                  window.location.reload();
-                                }, 3000);
-                              } catch (error) {
-                                console.error("Error adding admin:", error);
-                                setAlert({
-                                  show: true,
-                                  message: `Error: ${error.message}`,
-                                  type: "error",
-                                });
-                              }
-                            }}
+                            onClick={handleAddAdmin}
                           >
                             Add Admin
                           </button>
 
-                          <button
-                            type="button"
-                            className="flex-1 px-3 py-2 bg-mustard text-gray-900 text-sm font-medium rounded-md hover:bg-yellow-400 transition"
-                            onClick={() => {
-                              if (!selectedUserEmail) {
-                                setAlert({
-                                  show: true,
-                                  message:
-                                    "Please select a user to replace the current admin.",
-                                  type: "error",
-                                });
-                                return;
-                              }
-                              setReplaceConfirmOpen(true);
-                            }}
-                          >
-                            Replace Admin
-                          </button>
                         </div>
                       </div>
                     </div>
@@ -1391,89 +1367,6 @@ const EditOrg = () => {
               warning="Are you sure you want to remove this admin?"
               subtitle="This organization will have no admin until you assign a new one."
               confirmText="Remove"
-              cancelText="Cancel"
-            />
-
-            <ConfirmAction
-              isOpen={replaceConfirmOpen}
-              onClose={() => setReplaceConfirmOpen(false)}
-              onConfirm={async () => {
-                try {
-                  const { data: userData, error: userError } = await supabase
-                    .from("auth_user_view")
-                    .select("id, display_name, created_at")
-                    .eq("email", selectedUserEmail)
-                    .single();
-
-                  if (userError || !userData) {
-                    throw new Error(
-                      userError?.message || "Failed to retrieve user details."
-                    );
-                  }
-
-                  const {
-                    id: admin_id,
-                    display_name: admin_name,
-                    created_at: admin_created_at,
-                  } = userData;
-
-                  const { error: replaceError } = await supabase
-                    .from("admin")
-                    .upsert(
-                      [
-                        {
-                          admin_id,
-                          admin_email: selectedUserEmail,
-                          admin_name,
-                          org_id: org.org_id,
-                          admin_created_at,
-                        },
-                      ],
-                      {
-                        onConflict: "org_id", // ensures only one admin per org_id
-                      }
-                    );
-                  await supabase
-                    .from("user_roles") // or whatever your user metadata table is called
-                    .upsert(
-                      [
-                        {
-                          user_id: admin_id, // same as the id from auth
-                          role: "admin",
-                        },
-                      ],
-                      { onConflict: "user_id" }
-                    ); // avoids duplicate insertions
-
-                  if (replaceError)
-                    throw new Error(
-                      replaceError.message || "Failed to replace admin."
-                    );
-
-                  setAlert({
-                    show: true,
-                    message: "Admin replaced successfully!",
-                    type: "success",
-                  });
-                  setCurrentAdmin({
-                    admin_name,
-                    admin_email: selectedUserEmail,
-                  });
-                  setSelectedUserEmail(null);
-                } catch (error) {
-                  setAlert({
-                    show: true,
-                    message: `Error: ${error.message}`,
-                    type: "error",
-                  });
-                } finally {
-                  setReplaceConfirmOpen(false);
-                }
-              }}
-              title="Replace Admin"
-              warning={`Replace current admin with ${selectedUserEmail}?`}
-              subtitle="This will replace the current admin with the selected user."
-              confirmText="Replace"
               cancelText="Cancel"
             />
           </form>

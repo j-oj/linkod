@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/supabaseClient";
 import { useNavigate } from "react-router-dom";
 import { FaLock } from "react-icons/fa";
@@ -6,73 +6,85 @@ import { FaLock } from "react-icons/fa";
 const GoogleCallback = () => {
   const navigate = useNavigate();
   const [errorMsg, setErrorMsg] = useState("");
-
+  const loginRecordInserted = useRef(false);
   const goToHomePage = () => {
     navigate("/");
   };
 
-  useEffect(() => {
-    const checkSessionAndRole = async () => {
-      try {
-        await supabase.auth.getSessionFromUrl();
-        // Fetch the authenticated user
-        const {
-          data: { user },
-          error: userError,
-        } = await supabase.auth.getUser();
+useEffect(() => {
+  const checkSessionAndRole = async () => {
+    try {
+      console.log("Exchanging code for session...");
+      await supabase.auth.exchangeCodeForSession();
 
-        if (userError || !user) {
-          console.error("User error:", userError);
-          setErrorMsg("Sorry, you are not authorized to view this page.");
-          return;
-        }
-        console.log("User:", user); // Log the user data
+      // Fetch the authenticated user
+      console.log("Fetching authenticated user...");
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
 
-        // Fetch the session
-        const {
-          data: { session },
-          error: sessionError,
-        } = await supabase.auth.getSession();
-
-        if (sessionError || !session) {
-          console.error("Session error:", sessionError);
-          setErrorMsg("Session expired. Please log in again.");
-          return;
-        }
-        console.log("Session:", session); // Log the session data
-
-        // Fetch the user's role from the database
-        const { data: roleData, error: roleError } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", user.id)
-          .single();
-
-        if (roleError || !roleData) {
-          console.error("Role error:", roleError);
-          setErrorMsg("Sorry, you are not authorized to view this page.");
-          return;
-        }
-        console.log("Role data:", roleData); // Log the role data
-
-        // Check the user's role and navigate accordingly
-        const userRole = roleData.role;
-
-        if (userRole === "superadmin") {
-          navigate("/superadmin-dashboard");
-        } else if (userRole === "admin") {
-          navigate("/");
-        } else {
-          setErrorMsg("Unauthorized role.");
-        }
-      } catch (error) {
-        console.error("Error during session validation:", error);
-        setErrorMsg("An unexpected error occurred. Please try again.");
+      if (userError || !user) {
+        console.error("User error:", userError);
+        setErrorMsg("Sorry, you are not authorized to view this page.");
+        return;
       }
-    };
+      console.log("User:", user); // Log the user data
 
-    checkSessionAndRole();
-  }, [navigate]);
+      // Fetch the user's role from the database
+      const { data: roleData, error: roleError } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .single();
+
+      if (roleError || !roleData) {
+        console.error("Role error:", roleError);
+        setErrorMsg("Sorry, you are not authorized to view this page.");
+        return;
+      }
+      console.log("Role data:", roleData); // Log the role data
+
+      // Check the user's role
+      const userRole = roleData.role;
+
+      if (userRole === "admin") {
+        console.log("User is an admin. Recording login...");
+
+        // Insert the login record for the admin
+        if (!loginRecordInserted.current) {
+          loginRecordInserted.current = true; // Mark as inserted
+          const { error: loginRecordError } = await supabase
+            .from("admin_login_record")
+            .insert({
+              admin_id: user.id,
+              login_time: new Date().toISOString(), // Use the current date and time
+           });
+
+          if (loginRecordError) {
+            console.error("Failed to insert admin login record:", loginRecordError);
+          } else {
+            console.log("Admin login record inserted successfully.");
+          }
+        }
+
+        // Redirect to dashboard
+        navigate("/");
+      } else if (userRole === "superadmin") {
+        console.log("User is a superadmin. Redirecting...");
+        navigate("/superadmin-dashboard");
+      } else {
+        console.log("User role is not authorized:", userRole);
+        setErrorMsg("Unauthorized role.");
+      }
+    } catch (error) {
+      console.error("Error during session validation:", error);
+      setErrorMsg("An unexpected error occurred. Please try again.");
+    }
+  };
+
+  checkSessionAndRole();
+}, [navigate]);
 
   return (
     <div className="flex flex-col items-center justify-center h-screen bg-gray-100 px-4">
