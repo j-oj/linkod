@@ -26,12 +26,12 @@ function App() {
           <Route path="/orgs/:slug" element={<OrgPage />} />
 
           {/* Admin Protected Routes */}
-          <Route element={<ProtectedRoutes allowedRole="admin" />}>
+          <Route element={<ProtectedRoutes allowedRoles={["admin", "superadmin"]} />}>
             <Route path="/edit-org/:slug" element={<EditOrg />} />
           </Route>
 
           {/* Superadmin Protected Routes */}
-          <Route element={<ProtectedRoutes allowedRole="superadmin" />}>
+          <Route element={<ProtectedRoutes allowedRoles={["superadmin"]} />}>
             <Route path="/superadmin-dashboard" element={<SAdminDashboard />} />
             <Route path="/add-organization" element={<AddOrg />} />
           </Route>

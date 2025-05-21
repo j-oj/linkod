@@ -1313,7 +1313,7 @@ const EditOrg = () => {
                     Cancel
                   </button>
                   <button
-                    type="button" // change from "submit" to "button" to avoid triggering form submit
+                    type="submit" 
                     disabled={saving}
                     onClick={() => {
                       setAlert({
