@@ -1,5 +1,5 @@
 import { MdAlternateEmail } from "react-icons/md";
-import { FaFingerprint, FaRegEye, FaRegEyeSlash } from "react-icons/fa";
+import { FaKey, FaRegEye, FaRegEyeSlash } from "react-icons/fa";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/supabaseClient";
@@ -60,7 +60,10 @@ const Login = () => {
               });
 
             if (insertError) {
-              console.error("Failed to insert admin login record:", insertError.message);
+              console.error(
+                "Failed to insert admin login record:",
+                insertError.message
+              );
             } else {
               console.log("Admin login record inserted.");
             }
@@ -82,8 +85,6 @@ const Login = () => {
         .select("role")
         .eq("user_id", userId)
         .single();
-
-      console.log("user_roles fetch result:", { userData, userError });
 
       if (userError || !userData?.role) {
         setAlert({
@@ -209,7 +210,7 @@ const Login = () => {
 
       <div className="w-full h-screen flex items-center justify-center">
         <div className="w-[90%] max-w-sm md:max-w-md p-5 bg-gray-100 dark:bg-gray-900 flex-col flex items-center gap-3 rounded-xl shadow-md transition-all duration-300">
-          <img src="/templogo.png" alt="logo" className="w-25 md:w-14" />
+          <img src="/logo.png" alt="logo" className="w-25 md:w-14" />
           <h1 className="text-rose-950 text-lg md:text-xl font-semibold dark:text-white">
             Welcome!
           </h1>
@@ -225,7 +226,7 @@ const Login = () => {
                 <input
                   type="email"
                   placeholder="Email address"
-                  className="bg-transparent border-0 w-full outline-none text-sm md:text-base"
+                  className="bg-transparent border-0 w-full outline-none text-sm md:text-base text-gray-900 dark:text-white"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   aria-describedby="emailError"
@@ -242,11 +243,11 @@ const Login = () => {
                   passwordError ? "border border-red-500" : ""
                 }`}
               >
-                <FaFingerprint />
+                <FaKey />
                 <input
                   type={showPassword ? "text" : "password"}
                   placeholder="Password"
-                  className="bg-transparent border-0 w-full outline-none text-sm md:text-base"
+                  className="bg-transparent border-0 w-full outline-none text-sm md:text-base text-gray-900 dark:text-white"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   aria-describedby="passwordError"

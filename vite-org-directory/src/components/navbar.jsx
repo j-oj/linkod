@@ -64,14 +64,6 @@ const Navbar = () => {
         metadata.picture || // Alternative field name
         null;
 
-      console.log("User data:", {
-        metadata,
-        rawMetadata,
-        googleIdentity,
-        googleData,
-        avatar,
-      });
-
       // If no avatar, create fallback and update user
       if (!avatar) {
         avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(
@@ -171,7 +163,7 @@ const Navbar = () => {
         <Link to="/">
           {" "}
           <img
-            src="/templogo.png"
+            src="/logo.png"
             alt="logo"
             className="w-12 md:w-14 hover:scale-105 transition-transform duration-300"
           />
@@ -213,7 +205,7 @@ const Navbar = () => {
         {userRole === "guest" && !isLoginPage && (
           <Link
             to="/login"
-            className="px-4 py-2 bg-white text-maroon rounded-md font-medium hover:bg-gray-200 transition"
+            className="px-4 py-2 text-white rounded-md font-medium transition duration-300 ease-in-out transform hover:scale-110 hover:text-mustard hover:drop-shadow-lg"
           >
             Login
           </Link>

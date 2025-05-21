@@ -30,6 +30,8 @@ const OrgPage = () => {
   const [featuredPhotos, setFeaturedPhotos] = useState([]);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(null);
   const [atTop, setAtTop] = useState(true);
+  const [touchStartX, setTouchStartX] = useState(null);
+  const handleEdit = () => navigate(`/edit-org/${slug}`);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -37,7 +39,7 @@ const OrgPage = () => {
     };
 
     window.addEventListener("scroll", handleScroll);
-    handleScroll(); // run once on mount
+    handleScroll();
 
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
@@ -71,7 +73,7 @@ const OrgPage = () => {
         if (orgError || !orgData)
           throw new Error("Failed to fetch organization data.");
 
-        // ✅ Ensure socmed_links is parsed properly (in case it's returned as a string)
+        // Ensure socmed_links is parsed properly (in case it's returned as a string)
         if (orgData.socmed_links && typeof orgData.socmed_links === "string") {
           try {
             orgData.socmed_links = JSON.parse(orgData.socmed_links);
@@ -81,7 +83,6 @@ const OrgPage = () => {
         }
 
         setOrg(orgData);
-        console.log("SOCMED LINKS:", orgData.socmed_links);
 
         // Fetch featured photos
         const { data: photoData } = await supabase
@@ -153,8 +154,6 @@ const OrgPage = () => {
     );
   };
 
-  const handleEdit = () => navigate(`/edit-org/${slug}`);
-
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (selectedPhotoIndex === null) return;
@@ -166,8 +165,6 @@ const OrgPage = () => {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [selectedPhotoIndex]);
-
-  const [touchStartX, setTouchStartX] = useState(null);
 
   const handleTouchStart = (e) => {
     setTouchStartX(e.touches[0].clientX);
@@ -207,7 +204,6 @@ const OrgPage = () => {
       <Navbar />
       <div className="max-w-5xl mx-auto mt-20 px-4 sm:px-6 pb-12">
         <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-lg space-y-6 sm:space-y-8">
-          {/* Header - Responsive layout: centered on mobile, left-aligned on larger screens */}
           <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6">
             <div className="w-32 h-32 sm:w-24 sm:h-24 rounded-full overflow-hidden border border-gray-300 dark:border-gray-600">
               <img
@@ -347,7 +343,6 @@ const OrgPage = () => {
             </div>
           )}
 
-          {/* Application Info - Center on mobile, left-align on larger screens */}
           {(org.application_form || org.application_dates) && (
             <div className="text-center sm:text-left">
               <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-200 mb-2">

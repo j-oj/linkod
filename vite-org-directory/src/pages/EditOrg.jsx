@@ -266,43 +266,52 @@ const EditOrg = () => {
       showAlert("Please select a user to add as admin.", "error");
       return;
     }
-  
+
     try {
       // Check if the user is already assigned to another organization
       const { data: existingAdmin, error: existingAdminError } = await supabase
         .from("admin")
         .select("org_id")
         .eq("admin_email", selectedUserEmail)
-        .maybeSingle();   
-  
+        .maybeSingle();
+
       if (existingAdminError) {
         throw new Error("Failed to check if the user is already an admin.");
       }
-  
+
       if (existingAdmin) {
-        showAlert("This user is already an admin of another organization.", "error");
+        showAlert(
+          "This user is already an admin of another organization.",
+          "error"
+        );
         return;
       }
-  
+
       // Prevent adding the current admin as the new admin
       if (currentAdmin?.admin_email === selectedUserEmail) {
         showAlert("The selected user is already the current admin.", "error");
         return;
       }
-  
+
       // Fetch user details
       const { data: userData, error: userError } = await supabase
         .from("auth_user_view")
         .select("id, display_name, created_at")
         .eq("email", selectedUserEmail)
         .single();
-  
+
       if (userError || !userData) {
-        throw new Error(userError?.message || "Failed to retrieve user details.");
+        throw new Error(
+          userError?.message || "Failed to retrieve user details."
+        );
       }
-  
-      const { id: admin_id, display_name: admin_name, created_at: admin_created_at } = userData;
-  
+
+      const {
+        id: admin_id,
+        display_name: admin_name,
+        created_at: admin_created_at,
+      } = userData;
+
       // Insert admin into the `admin` table
       const { error: insertError } = await supabase.from("admin").insert([
         {
@@ -313,18 +322,20 @@ const EditOrg = () => {
           admin_created_at,
         },
       ]);
-  
-    
+
       if (insertError) {
         // Check for unique constraint violation
         if (insertError.message.includes("unique_org_admin")) {
-          showAlert("This organization already has an admin assigned.", "error");
+          showAlert(
+            "This organization already has an admin assigned.",
+            "error"
+          );
           return;
         }
-  
+
         throw new Error(insertError.message || "Failed to add admin.");
       }
-  
+
       showAlert("Admin added successfully!", "success");
       setSelectedUserEmail(null);
       setTimeout(() => {
@@ -426,7 +437,6 @@ const EditOrg = () => {
     setSaving(true);
 
     try {
-      console.log("Submitting org update...");
       let logo_url = org.org_logo; // Keep the existing logo URL by default
 
       // Only attempt image upload if a new file was selected
@@ -551,8 +561,6 @@ const EditOrg = () => {
       const tagsToRemove = orgTags.filter((tag) => !newTagNames.includes(tag));
 
       if (tagsToAdd.length > 0 || tagsToRemove.length > 0) {
-        console.log("Tag changes detected, processing updates...");
-
         if (tagsToRemove.length > 0) {
           // Find tag IDs to remove
           const { data: tagsToRemoveData, error: findRemoveError } =
@@ -570,8 +578,6 @@ const EditOrg = () => {
           const tagIdsToRemove = tagsToRemoveData.map((tag) => tag.tag_id);
 
           if (tagIdsToRemove.length > 0) {
-            console.log("Removing tag IDs:", tagIdsToRemove);
-
             const { error: deleteTagsError } = await supabase
               .from("org_tag")
               .delete()
@@ -584,10 +590,6 @@ const EditOrg = () => {
               );
             }
           }
-
-          console.log("Org ID:", org.org_id);
-          console.log("Tags to remove:", tagsToRemove);
-          console.log("Tag IDs to remove:", tagIdsToRemove);
         }
 
         if (tagsToAdd.length > 0) {
@@ -941,7 +943,6 @@ const EditOrg = () => {
                           >
                             Add Admin
                           </button>
-
                         </div>
                       </div>
                     </div>
@@ -1313,7 +1314,7 @@ const EditOrg = () => {
                     Cancel
                   </button>
                   <button
-                    type="submit" 
+                    type="submit"
                     disabled={saving}
                     onClick={() => {
                       setAlert({
@@ -1324,7 +1325,7 @@ const EditOrg = () => {
 
                       setTimeout(() => {
                         navigate(`/orgs/${slug}`);
-                      }, 2000); // wait for 3 seconds
+                      }, 2000);
                     }}
                     className="w-full sm:w-auto px-6 py-2.5 bg-maroon hover:bg-red-800 text-white font-medium rounded-lg shadow transition disabled:opacity-50 disabled:cursor-not-allowed"
                   >

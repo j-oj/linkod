@@ -36,15 +36,12 @@ const Homepage = () => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        console.log("Checking authentication...");
         const { data } = await supabase.auth.getSession();
         const isLoggedIn = !!data.session;
-        console.log("Is user logged in:", isLoggedIn);
 
         if (isLoggedIn) {
           const { user } = data.session;
           setUser(user);
-          console.log("Logged in user:", user.id, user.email);
 
           const { data: userData, error: userError } = await supabase
             .from("user_roles")
@@ -53,61 +50,42 @@ const Homepage = () => {
             .single();
 
           if (userError) console.error("Error fetching user role:", userError);
-          console.log("User role data:", userData);
 
           const role = userData?.role || "user";
           localStorage.setItem("userRole", role);
           setUserRole(role);
-          console.log("Set user role to:", role);
 
           // If user is an admin, find their organization
           if (role === "admin") {
-            console.log("User is admin, finding their organization...");
-
             // Try to find by admin_id first
-            console.log("Looking up admin by ID:", user.id);
             const { data: byIdData, error: byIdError } = await supabase
               .from("admin")
               .select("org_id")
               .eq("admin_id", user.id)
               .maybeSingle();
 
-            console.log("Admin lookup by ID result:", byIdData, byIdError);
-
             let adminData = null;
             if (!byIdData) {
-              console.log("Admin not found by ID, trying email:", user.email);
               const { data: byEmailData, error: byEmailError } = await supabase
                 .from("admin")
                 .select("org_id")
                 .eq("admin_email", user.email)
                 .maybeSingle();
 
-              console.log(
-                "Admin lookup by email result:",
-                byEmailData,
-                byEmailError
-              );
               adminData = byEmailData;
             } else {
               adminData = byIdData;
             }
 
-            console.log("Final admin data:", adminData);
-
             // If admin data found, get the organization slug
             if (adminData && adminData.org_id) {
-              console.log("Found admin org_id:", adminData.org_id);
               const { data: orgData, error: orgError } = await supabase
                 .from("organization")
                 .select("slug, org_name")
                 .eq("org_id", adminData.org_id)
                 .maybeSingle();
 
-              console.log("Organization data:", orgData, orgError);
-
               if (orgData?.slug) {
-                console.log("Setting admin org slug to:", orgData.slug);
                 setAdminOrgSlug(orgData.slug);
               } else {
                 console.log("No organization slug found");
@@ -119,7 +97,6 @@ const Homepage = () => {
         } else {
           localStorage.removeItem("userRole");
           setUserRole("guest");
-          console.log("User is not logged in, set as guest");
         }
       } catch (error) {
         console.error("Auth check error:", error);
@@ -134,7 +111,6 @@ const Homepage = () => {
     const fetchOrgs = async () => {
       setLoading(true);
       try {
-        console.log("Fetching organizations...");
         const [
           { data: orgData, error: orgError },
           { data: catData, error: catError },
@@ -193,7 +169,6 @@ const Homepage = () => {
     );
 
     return () => {
-      // Clean up observer on component unmount
       if (observerRef.current) {
         observerRef.current.disconnect();
       }
@@ -202,15 +177,12 @@ const Homepage = () => {
 
   // Observe organization cards when they're added or changed
   useEffect(() => {
-    // Wait a bit to ensure DOM is updated before observing
     const timer = setTimeout(() => {
       const cards = document.querySelectorAll(".org-card");
       cards.forEach((card, index) => {
-        // Add initial hidden class with staggered delay
         card.classList.add("card-hidden");
         card.style.transitionDelay = `${index * 50}ms`;
 
-        // Start observing this card if we have an observer
         if (observerRef.current) {
           observerRef.current.observe(card);
         }
@@ -220,23 +192,10 @@ const Homepage = () => {
     return () => clearTimeout(timer);
   }, [filteredOrgs]);
 
-  // Debug useEffect to log state changes
-  useEffect(() => {
-    console.log("Current adminOrgSlug:", adminOrgSlug);
-    console.log("Current userRole:", userRole);
-    console.log("Organization count:", orgs.length);
-  }, [adminOrgSlug, userRole, orgs]);
-
   const handleSearch = (e) => {
     const term = e.target.value;
     setSearchTerm(term);
     filterOrgs(term, selectedCategory);
-  };
-
-  const handleCategoryChange = (e) => {
-    const category = e.target.value;
-    setSelectedCategory(category);
-    filterOrgs(searchTerm, category);
   };
 
   const filterOrgs = (term = searchTerm, category = selectedCategory) => {
@@ -253,7 +212,6 @@ const Homepage = () => {
     setFilteredOrgs(filtered);
   };
 
-  // Check if the org is the admin's org
   const isAdminOrg = (orgSlug) => {
     const isAdmin = userRole === "admin" && adminOrgSlug === orgSlug;
 
@@ -272,7 +230,6 @@ const Homepage = () => {
     <>
       <Navbar />
 
-      {/* Add CSS for scroll animations */}
       <style jsx="true">{`
         /* CSS for card scroll animations */
         .card-hidden {
@@ -314,7 +271,9 @@ const Homepage = () => {
               An online directory for student-led campus organizations.
             </h2>
           </div>
-            <span className="absolute bottom-10 lg:bottom-3 left-5 text-xs md:text-sm z-10 text-white">&copy; UP Mindanao Public Relations Office </span>
+          <span className="absolute bottom-10 lg:bottom-3 left-5 text-xs md:text-sm z-10 text-white">
+            &copy; UP Mindanao Public Relations Office{" "}
+          </span>
         </div>
       </section>
 
@@ -452,7 +411,6 @@ const Homepage = () => {
                     <div className="h-1.5 bg-maroon"></div>
                     <div className="p-8">
                       {" "}
-                      {/*added padding to make the cards look bigger*/}
                       {isAdmin && (
                         <div
                           className="absolute top-2 right-2 bg-yellow-400 text-maroon rounded-full p-1.5"

@@ -369,8 +369,6 @@ const AddOrg = () => {
           }
         }
       }
-
-      // Success! Navigate to the org page
       navigate(`/orgs/${slug}`);
     } catch (err) {
       console.error("Error during submission:", err);

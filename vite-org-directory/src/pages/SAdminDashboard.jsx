@@ -42,7 +42,7 @@ export default function SAdminDashboard() {
     type: "error",
   });
 
-  // invite
+  // Invite
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [selectedRole, setSelectedRole] = useState("");
@@ -81,8 +81,6 @@ export default function SAdminDashboard() {
         if (data) {
           setCurrentAdminId(data.admin_id);
         } else {
-          console.error("Current admin not found:", error);
-          // For local development, you might want to set a default admin ID
           setCurrentAdminId("default-admin-id");
         }
       }
@@ -138,7 +136,6 @@ export default function SAdminDashboard() {
           .order("login_time", { ascending: false });
 
         if (loginError) throw loginError;
-        console.log("Admin login records:", loginData);
         setLoginRecords(loginData || []);
       }
     } catch (error) {
@@ -170,7 +167,7 @@ export default function SAdminDashboard() {
       console.log("Removing admin:", selectedItem);
 
       try {
-        // 1. Delete admin from the `admin` table
+        // Delete admin from the `admin` table
         const { error: adminDeleteError } = await supabase
           .from("admin")
           .delete()
@@ -181,7 +178,7 @@ export default function SAdminDashboard() {
           throw new Error("Failed to delete admin.");
         }
 
-        // 2. Delete admin's roles from the `user_roles` table
+        // Delete admin's roles from the `user_roles` table
         const { error: userRolesDeleteError } = await supabase
           .from("user_roles")
           .delete()
@@ -192,7 +189,7 @@ export default function SAdminDashboard() {
           throw new Error("Failed to delete admin roles.");
         }
 
-        // 3. Delete admin from `auth.users` using the Edge Function
+        // Delete admin from `auth.users` using the Edge Function
         try {
           const {
             data: { session },
@@ -228,10 +225,6 @@ export default function SAdminDashboard() {
             );
             throw new Error(result.message || "Failed to delete admin.");
           }
-
-          console.log(
-            `Admin ${selectedItem.admin_id} deleted from auth.users.`
-          );
         } catch (authDeleteError) {
           console.error(
             "Error deleting admin from auth.users via Edge Function:",
@@ -240,7 +233,7 @@ export default function SAdminDashboard() {
           throw new Error("Failed to delete admin from authentication system.");
         }
 
-        // 4. Update the `admins` state to remove the deleted admin
+        // Update the `admins` state to remove the deleted admin
         setAdmins((prevAdmins) =>
           prevAdmins.filter((admin) => admin.admin_id !== selectedItem.admin_id)
         );
@@ -264,9 +257,7 @@ export default function SAdminDashboard() {
 
     try {
       if (actionType === "delete-org") {
-        console.log("Deleting org:", selectedItem);
-
-        // 1. Check if organization exists
+        // Check if organization exists
         const { data: orgCheck, error: orgCheckError } = await supabase
           .from("organization")
           .select("org_id")
@@ -278,7 +269,7 @@ export default function SAdminDashboard() {
           throw new Error("Organization not found.");
         }
 
-        // 2. Get all admins of this organization
+        // Get all admins of this organization
         const { data: orgAdmins, error: orgAdminsError } = await supabase
           .from("admin")
           .select("admin_id")
@@ -292,7 +283,7 @@ export default function SAdminDashboard() {
         const adminIds = orgAdmins?.map((admin) => admin.admin_id) || [];
 
         if (adminIds.length > 0) {
-          // 3. Delete admin login records for these admins
+          // Delete admin login records for these admins
           const { error: loginRecordsDeleteError } = await supabase
             .from("admin_login_record")
             .delete()
@@ -306,7 +297,7 @@ export default function SAdminDashboard() {
             // Continue with deletion even if this fails
           }
 
-          // 4. Delete the admins associated with this organization
+          // Delete the admins associated with this organization
           const { error: adminsDeleteError } = await supabase
             .from("admin")
             .delete()
@@ -320,7 +311,7 @@ export default function SAdminDashboard() {
             // Continue with deletion even if this fails
           }
 
-          // 5. Delete user_roles entries for these admins
+          // Delete user_roles entries for these admins
           const { error: userRolesDeleteError } = await supabase
             .from("user_roles")
             .delete()
@@ -334,7 +325,7 @@ export default function SAdminDashboard() {
             // Continue with deletion even if this fails
           }
 
-          // 6. Delete admins from auth.users using the Edge Function
+          // Delete admins from auth.users using the Edge Function
           try {
             // Get current session to extract access token
             const {
@@ -387,7 +378,7 @@ export default function SAdminDashboard() {
           }
         }
 
-        // 7. Delete related org_tag entries (junction table only)
+        // Delete related org_tag entries (junction table only)
         const { error: orgTagDeleteError } = await supabase
           .from("org_tag")
           .delete()
@@ -401,7 +392,7 @@ export default function SAdminDashboard() {
           // Continue with deletion even if this fails
         }
 
-        // 8. Delete the organization itself
+        // Delete the organization itself
         const { error: orgDeleteError } = await supabase
           .from("organization")
           .delete()
@@ -412,7 +403,7 @@ export default function SAdminDashboard() {
           throw new Error("Failed to delete organization.");
         }
 
-        // 9. Update local state
+        // Update local state
         setOrganizations(
           organizations.filter((org) => org.org_id !== selectedItem.org_id)
         );

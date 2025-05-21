@@ -26,7 +26,9 @@ function App() {
           <Route path="/orgs/:slug" element={<OrgPage />} />
 
           {/* Admin Protected Routes */}
-          <Route element={<ProtectedRoutes allowedRoles={["admin", "superadmin"]} />}>
+          <Route
+            element={<ProtectedRoutes allowedRoles={["admin", "superadmin"]} />}
+          >
             <Route path="/edit-org/:slug" element={<EditOrg />} />
           </Route>
 
