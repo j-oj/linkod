@@ -191,7 +191,6 @@ const AddOrg = () => {
       if (
         !org.org_name ||
         !org.org_acronym ||
-        !org.org_email ||
         !selectedCategory
       ) {
         throw new Error("Please fill in all required fields");
@@ -504,14 +503,13 @@ const AddOrg = () => {
 
                   <div>
                     <label className="block font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Email <span className="text-red-500">*</span>
+                      Email 
                     </label>
                     <input
                       type="email"
                       name="org_email"
                       value={org.org_email || ""}
                       onChange={handleChange}
-                      required
                       className="w-full text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-3 text-sm focus:ring-2 focus:ring-red-300 focus:border-red-500 transition"
                     />
                   </div>
