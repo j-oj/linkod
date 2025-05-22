@@ -991,14 +991,13 @@ const EditOrg = () => {
 
                     <div>
                       <label className="block font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Email <span className="text-red-500">*</span>
+                        Email
                       </label>
                       <input
                         type="email"
                         name="org_email"
                         value={org.org_email || ""}
                         onChange={handleChange}
-                        required
                         className="w-full text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg p-3 text-sm transition focus:ring-2 focus:ring-red-500 focus:border-red-500 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                       />
                       <ErrorMessage message={fieldErrors.org_email} />
