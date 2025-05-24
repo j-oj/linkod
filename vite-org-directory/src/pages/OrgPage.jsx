@@ -202,7 +202,7 @@ const OrgPage = () => {
   return (
     <>
       <Navbar />
-      <div className="max-w-5xl mx-auto mt-20 px-4 sm:px-6 pb-12">
+      <div className="max-w-5xl mx-auto mt-30 px-4 sm:px-6 pb-12">
         <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-lg space-y-6 sm:space-y-8">
           <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6">
             <div className="w-32 h-32 sm:w-24 sm:h-24 rounded-full overflow-hidden border border-gray-300 dark:border-gray-600">
