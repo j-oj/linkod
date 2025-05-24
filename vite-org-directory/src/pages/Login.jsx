@@ -86,7 +86,7 @@ const Login = () => {
         .eq("user_id", userId)
         .single();
 
-      if (userError || !userData?.role) {
+  /*    if (userError || !userData?.role) {
         setAlert({
           show: true,
           message: "Your account does not have access. Contact admin.",
@@ -94,6 +94,7 @@ const Login = () => {
         });
         return;
       }
+  */
 
       localStorage.setItem("userRole", userData.role || "user");
 
@@ -110,11 +111,12 @@ const Login = () => {
       }, 1000);
     } catch (err) {
       console.error("redirectBasedOnRole failed:", err);
+      /*
       setAlert({
         show: true,
         message: "Login failed. Please try again.",
         type: "error",
-      });
+      }); */
     }
   };
 
