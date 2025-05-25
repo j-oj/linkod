@@ -723,7 +723,7 @@ const EditOrg = () => {
               // Track error messages
               const errors = {};
 
-              // Check required fields
+              // Check required fields: org name, president, category
               const form = e.target;
               const inputs = form.querySelectorAll(
                 "input[required],textarea[required]"
