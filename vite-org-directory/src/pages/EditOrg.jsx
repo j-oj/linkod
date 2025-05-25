@@ -544,12 +544,14 @@ const EditOrg = () => {
         })
         .eq("org_id", org.org_id);
 
+      // Add this right after the database update succeeds and before the tag processing:
       if (updateError) {
         console.error("Database update failed:", updateError);
         throw new Error(
           `Failed to update organization details: ${updateError.message}`
         );
       }
+
       // Process tags more efficiently
       const newTagNames = tagInput
         .split(",")
@@ -658,6 +660,11 @@ const EditOrg = () => {
 
         // Update local state to reflect new tags
         setOrgTags(newTagNames);
+        showAlert("Organization updated successfully!", "success");
+
+        setTimeout(() => {
+          navigate(`/orgs/${slug}`);
+        }, 2000);
       }
     } catch (err) {
       console.error("Error during update:", err);
@@ -773,9 +780,6 @@ const EditOrg = () => {
                     firstErrorElement.focus();
                   }, 500);
                 }
-
-                // Show toast with error message
-                toast.error("Please fill in all required fields");
               }
 
               // Only submit if all validations pass
@@ -1315,17 +1319,6 @@ const EditOrg = () => {
                   <button
                     type="submit"
                     disabled={saving}
-                    onClick={() => {
-                      setAlert({
-                        show: true,
-                        message: "Organization updated successfully!",
-                        type: "success",
-                      });
-
-                      setTimeout(() => {
-                        navigate(`/orgs/${slug}`);
-                      }, 2000);
-                    }}
                     className="w-full sm:w-auto px-6 py-2.5 bg-maroon hover:bg-red-800 text-white font-medium rounded-lg shadow transition disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {saving ? "Saving..." : "Save Changes"}

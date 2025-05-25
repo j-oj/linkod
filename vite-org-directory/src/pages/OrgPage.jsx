@@ -226,15 +226,17 @@ const OrgPage = () => {
                   {org.category?.category_name || "Uncategorized"}
                 </span>
               </p>
-              <p className="text-gray-600 dark:text-gray-300">
-                Email:{" "}
-                <a
-                  href={`mailto:${org.org_email}`}
-                  className="text-blue-600 dark:text-blue-400 underline hover:text-blue-700 dark:hover:text-blue-300"
-                >
-                  {org.org_email || "N/A"}
-                </a>
-              </p>
+              {org.org_email && (
+                <p className="text-gray-600 dark:text-gray-300">
+                  Email:{" "}
+                  <a
+                    href={`mailto:${org.org_email}`}
+                    className="text-blue-600 dark:text-blue-400 underline hover:text-blue-700 dark:hover:text-blue-300"
+                  >
+                    {org.org_email}
+                  </a>
+                </p>
+              )}
             </div>
           </div>
 

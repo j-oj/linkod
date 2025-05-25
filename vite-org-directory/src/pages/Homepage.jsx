@@ -30,9 +30,9 @@ const Homepage = () => {
   const [selectedCategory, setSelectedCategory] = useState("");
   const [user, setUser] = useState(null);
   const [showCount, setShowCount] = useState(true);
-  const [observedElements, setObservedElements] = useState({});
   const observerRef = useRef(null);
 
+  // Authenticate user and set roles
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -43,55 +43,45 @@ const Homepage = () => {
           const { user } = data.session;
           setUser(user);
 
-          const { data: userData, error: userError } = await supabase
+          const { data: userData } = await supabase
             .from("user_roles")
             .select("role")
             .eq("user_id", user.id)
             .single();
 
-          if (userError) console.error("Error fetching user role:", userError);
-
           const role = userData?.role || "user";
           localStorage.setItem("userRole", role);
           setUserRole(role);
 
-          // If user is an admin, find their organization
           if (role === "admin") {
-            // Try to find by admin_id first
-            const { data: byIdData, error: byIdError } = await supabase
+            const { data: byIdData } = await supabase
               .from("admin")
               .select("org_id")
               .eq("admin_id", user.id)
               .maybeSingle();
 
-            let adminData = null;
-            if (!byIdData) {
-              const { data: byEmailData, error: byEmailError } = await supabase
+            let adminData = byIdData;
+
+            if (!adminData) {
+              const { data: byEmailData } = await supabase
                 .from("admin")
                 .select("org_id")
                 .eq("admin_email", user.email)
                 .maybeSingle();
 
               adminData = byEmailData;
-            } else {
-              adminData = byIdData;
             }
 
-            // If admin data found, get the organization slug
-            if (adminData && adminData.org_id) {
-              const { data: orgData, error: orgError } = await supabase
+            if (adminData?.org_id) {
+              const { data: orgData } = await supabase
                 .from("organization")
-                .select("slug, org_name")
+                .select("slug")
                 .eq("org_id", adminData.org_id)
                 .maybeSingle();
 
               if (orgData?.slug) {
                 setAdminOrgSlug(orgData.slug);
-              } else {
-                console.log("No organization slug found");
               }
-            } else {
-              console.log("No valid admin data found");
             }
           }
         } else {
@@ -107,29 +97,23 @@ const Homepage = () => {
     checkAuth();
   }, []);
 
+  // Fetch orgs and categories
   useEffect(() => {
     const fetchOrgs = async () => {
       setLoading(true);
       try {
-        const [
-          { data: orgData, error: orgError },
-          { data: catData, error: catError },
-        ] = await Promise.all([
+        const [{ data: orgData }, { data: catData }] = await Promise.all([
           supabase
             .from("organization")
             .select(
               "*, category(category_name), org_tag(tag:tag_id (tag_name))"
             )
             .order("org_name", { ascending: true }),
-
           supabase
             .from("category")
             .select("*")
             .order("category_name", { ascending: true }),
         ]);
-
-        if (orgError) throw orgError;
-        if (catError) throw catError;
 
         setOrgs(orgData || []);
         setFilteredOrgs(orgData || []);
@@ -146,52 +130,43 @@ const Homepage = () => {
     fetchOrgs();
   }, []);
 
-  // Set up Intersection Observer for scroll effects
+  // IntersectionObserver: animate once
   useEffect(() => {
     observerRef.current = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting) {
+          if (
+            entry.isIntersecting &&
+            !entry.target.classList.contains("card-visible")
+          ) {
             entry.target.classList.add("card-visible");
             entry.target.classList.remove("card-hidden");
-          } else {
-            // Reset the animation when the card leaves the viewport
-            entry.target.classList.remove("card-visible");
-            entry.target.classList.add("card-hidden");
+            observerRef.current.unobserve(entry.target);
           }
         });
       },
-      {
-        root: null,
-        rootMargin: "0px",
-        threshold: 0.15,
-      }
+      { threshold: 0.1 }
     );
 
-    return () => {
-      if (observerRef.current) {
-        observerRef.current.disconnect();
-      }
-    };
+    return () => observerRef.current?.disconnect();
   }, []);
 
-  // Observe organization cards when they're added or changed
+  // Apply animation to org cards
   useEffect(() => {
     const timer = setTimeout(() => {
       const cards = document.querySelectorAll(".org-card");
       cards.forEach((card, index) => {
-        card.classList.add("card-hidden");
-        card.style.transitionDelay = `${index * 50}ms`;
-
-        if (observerRef.current) {
-          observerRef.current.observe(card);
+        if (!card.classList.contains("card-visible")) {
+          card.classList.add("card-hidden");
+          card.style.transitionDelay = `${index * 25}ms`;
+          observerRef.current?.observe(card);
         }
       });
-    }, 100);
-
+    }, 50);
     return () => clearTimeout(timer);
   }, [filteredOrgs]);
 
+  // Search/filter logic
   const handleSearch = (e) => {
     const term = e.target.value;
     setSearchTerm(term);
@@ -205,7 +180,6 @@ const Homepage = () => {
       const tagMatch = tags.some((tag) => tag.includes(term.toLowerCase()));
       const categoryMatch =
         !category || org.category?.category_name === category;
-
       return (nameMatch || tagMatch) && categoryMatch;
     });
 
@@ -213,38 +187,30 @@ const Homepage = () => {
   };
 
   const isAdminOrg = (orgSlug) => {
-    const isAdmin = userRole === "admin" && adminOrgSlug === orgSlug;
-
-    return isAdmin;
+    return userRole === "admin" && adminOrgSlug === orgSlug;
   };
 
-  if (loading) {
-    return (
-      <>
-        <Loading />
-      </>
-    );
-  }
+  if (loading) return <Loading />;
 
   return (
     <>
       <Navbar />
 
       <style jsx="true">{`
-        /* CSS for card scroll animations */
         .card-hidden {
           opacity: 0;
-          transform: translateY(30px);
-          transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+          transform: translateY(20px);
+          transition: opacity 0.25s ease-out, transform 0.25s ease-out;
         }
-
         .card-visible {
           opacity: 1;
           transform: translateY(0);
         }
+        .org-card {
+          transition: transform 0.25s ease-out, box-shadow 0.25s ease-out;
+        }
       `}</style>
 
-      {/* Hero Section */}
       <section className="py-15">
         <div
           style={{
@@ -257,48 +223,41 @@ const Homepage = () => {
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            zIndex: -1,
           }}
-          className="relative"
+          className="relative z-0"
         >
-          <div className="text-center left-0 text-white mt-5 lg:mt-20 px-5 py-5 custom-text-shadow">
-            <h1 className="text-2xl font-bold text-white mb-2.5 md:text-4xl lg:text-5xl">
-              {" "}
+          <div className="text-center text-white mt-5 lg:mt-20 px-5 py-5 custom-text-shadow">
+            <h1 className="text-2xl font-bold md:text-4xl lg:text-5xl">
               <span className="text-mustard">Connect</span> with your UP
-              Mindanao Community now!{" "}
+              Mindanao Community now!
             </h1>
             <h2 className="text-l italic md:text-2xl">
               An online directory for student-led campus organizations.
             </h2>
           </div>
           <span className="absolute bottom-10 lg:bottom-3 left-5 text-xs md:text-sm z-10 text-white">
-            &copy; UP Mindanao Public Relations Office{" "}
+            &copy; UP Mindanao Public Relations Office
           </span>
         </div>
       </section>
 
-      {/* Search & Filter Bar */}
-      <div className="max-w-6xl mx-auto px-4 mb-12 z-15 -mt-24 flex justify-center">
-        <div className="bg-white dark:bg-gray-900 shadow-md border border-gray-200 dark:border-gray-700 rounded-xl p-6 flex flex-col sm:flex-row items-center gap-4">
+      {/* Search and Filter */}
+      <div className="max-w-6xl mx-auto px-4 mb-12 -mt-24 flex justify-center z-10 relative">
+        <div className="bg-white dark:bg-gray-900 shadow-md border border-gray-200 dark:border-gray-700 rounded-xl p-6 flex flex-col sm:flex-row items-center gap-4 transition-colors duration-200">
           <div className="relative w-full sm:w-96">
             <input
               type="text"
               placeholder="Search organizations..."
               value={searchTerm}
               onChange={handleSearch}
-              className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 rounded-lg py-2.5 px-4 pl-10 focus:outline-none focus:ring-1 focus:ring-maroon dark:focus:ring-red-600 text-gray-800 dark:text-white"
+              className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 rounded-lg py-2.5 px-4 pl-10 focus:outline-none focus:ring-1 focus:ring-maroon dark:focus:ring-red-600 text-gray-800 dark:text-white transition-colors duration-200"
             />
-            <div
-              className="absolute flex left-3 top-4 text-gray-400 cursor-pointer"
-              onClick={() =>
-                document.querySelector('input[type="text"]').focus()
-              }
-            >
+            <div className="absolute left-3 top-4 text-gray-400 cursor-pointer">
               <FaSearch />
             </div>
             {searchTerm && (
               <div
-                className="absolute right-3 top-4 text-gray-400 hover:text-gray-600 cursor-pointer"
+                className="absolute right-3 top-4 text-gray-400 hover:text-gray-600 cursor-pointer "
                 onClick={() => {
                   setSearchTerm("");
                   filterOrgs("", selectedCategory);
@@ -309,6 +268,7 @@ const Homepage = () => {
             )}
           </div>
 
+          {/* Category Dropdown */}
           <div className="relative w-full sm:w-60">
             <Listbox
               value={selectedCategory}
@@ -317,39 +277,43 @@ const Homepage = () => {
                 filterOrgs(searchTerm, val);
               }}
             >
-              <div className="relative w-full sm:w-60">
-                <ListboxButton className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-white rounded-lg py-2.5 px-4 pr-10 text-left focus:outline-none focus:ring-1 focus:ring-maroon dark:focus:ring-red-600">
+              <div className="relative">
+                <ListboxButton className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-white rounded-lg py-2.5 px-4 pr-10 text-left transition-colors duration-200">
                   {selectedCategory || "All Categories"}
                   <span className="absolute inset-y-0 right-4 flex items-center pointer-events-none">
                     <FaChevronDown className="text-gray-400" />
                   </span>
                 </ListboxButton>
                 <ListboxOptions className="absolute z-10 mt-1 w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-60 overflow-auto text-sm">
-                  <ListboxOption
-                    value=""
-                    className={({ active }) =>
-                      `cursor-pointer select-none relative px-4 py-2 ${
-                        active
-                          ? "bg-red-700 text-white"
-                          : "text-gray-800 dark:text-white"
-                      }`
-                    }
-                  >
-                    All Categories
+                  <ListboxOption value="">
+                    {({ active }) => (
+                      <div
+                        className={`cursor-pointer px-4 py-2 ${
+                          active
+                            ? "bg-red-700 text-white"
+                            : "text-gray-800 dark:text-white"
+                        }`}
+                      >
+                        All Categories
+                      </div>
+                    )}
                   </ListboxOption>
                   {categories.map((cat) => (
                     <ListboxOption
                       key={cat.category_id}
                       value={cat.category_name}
-                      className={({ active }) =>
-                        `cursor-pointer select-none relative px-4 py-2 ${
-                          active
-                            ? "bg-red-700 text-white"
-                            : "text-gray-800 dark:text-white"
-                        }`
-                      }
                     >
-                      {cat.category_name}
+                      {({ active }) => (
+                        <div
+                          className={`cursor-pointer px-4 py-2 ${
+                            active
+                              ? "bg-red-700 text-white"
+                              : "text-gray-800 dark:text-white"
+                          }`}
+                        >
+                          {cat.category_name}
+                        </div>
+                      )}
                     </ListboxOption>
                   ))}
                 </ListboxOptions>
@@ -364,7 +328,7 @@ const Homepage = () => {
                 setSelectedCategory("");
                 filterOrgs("", "");
               }}
-              className="px-4 py-2 bg-maroon/10 hover:bg-maroon/20 text-maroon rounded-lg transition-colors dark:text-white dark:bg-maroon dark:hover:bg-red-700"
+              className="px-4 py-2 bg-maroon/10 hover:bg-maroon/20 text-maroon rounded-lg dark:text-white dark:bg-maroon dark:hover:bg-red-700 transition-colors"
             >
               Clear Filters
             </button>
@@ -377,19 +341,16 @@ const Homepage = () => {
         {filteredOrgs.length > 0 ? (
           <>
             <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-2 text-gray-800 dark:text-white">
+              <div className="flex items-center gap-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-2 transition-colors duration-200">
                 <button
                   onClick={() => setShowCount(!showCount)}
-                  className="text-maroon hover:text-red-800 focus:outline-none text-lg dark:text-gray-400 dark:hover:text-gray-300 transition-colors hover:cursor-pointer"
+                  className="text-maroon hover:text-red-800 dark:text-gray-400 dark:hover:text-gray-300 text-lg"
                   title={showCount ? "Hide count" : "Show count"}
                 >
                   {showCount ? <FaEyeSlash /> : <FaEye />}
                 </button>
                 {showCount && (
-                  <div
-                    className="text-gray-500 dark:text-gray-400 hover:cursor-pointer"
-                    onClick={() => setShowCount(!showCount)}
-                  >
+                  <div className="text-gray-500 dark:text-gray-400">
                     Showing {filteredOrgs.length} organization
                     {filteredOrgs.length !== 1 ? "s" : ""}
                   </div>
@@ -398,19 +359,18 @@ const Homepage = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredOrgs.map((org, index) => {
+              {filteredOrgs.map((org) => {
                 const isAdmin = isAdminOrg(org.slug);
                 return (
                   <Link
                     key={org.id || org.org_id}
                     to={`/orgs/${org.slug}`}
-                    className={`org-card relative bg-white dark:bg-gray-800 shadow-sm hover:shadow-lg transition-all duration-300 rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-700 group hover:scale-103 dark:hover:border-white ${
-                      isAdmin ? "ring-4 ring-yellow-400 " : ""
+                    className={`org-card relative bg-white dark:bg-gray-800 shadow-sm hover:shadow-lg transition-all rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-700 transition-colors duration-400 group ${
+                      isAdmin ? "ring-4 ring-yellow-400" : ""
                     }`}
                   >
                     <div className="h-1.5 bg-maroon"></div>
                     <div className="p-8">
-                      {" "}
                       {isAdmin && (
                         <div
                           className="absolute top-2 right-2 bg-yellow-400 text-maroon rounded-full p-1.5"
@@ -420,7 +380,7 @@ const Homepage = () => {
                         </div>
                       )}
                       <div className="flex flex-col items-center">
-                        <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-700 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform duration-300">
+                        <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-700 flex items-center justify-center mb-4 transition-colors duration-200">
                           <img
                             src={
                               org.org_logo ||
@@ -430,10 +390,10 @@ const Homepage = () => {
                             className="w-16 h-16 object-cover"
                           />
                         </div>
-                        <h2 className="font-bold text-base text-center text-gray-800 dark:text-white truncate max-w-full transition-transform duration-300">
+                        <h2 className="font-bold text-base text-center text-gray-800 dark:text-white truncate max-w-full transition-colors duration-200">
                           {org.org_name}
                         </h2>
-                        <span className="mt-2 inline-block px-3 py-1 bg-gray-100 dark:bg-gray-700 text-xs rounded-full text-gray-600 dark:text-gray-300 transition-transform duration-300">
+                        <span className="mt-2 inline-block px-3 py-1 bg-gray-100 dark:bg-gray-700 text-xs rounded-full text-gray-600 dark:text-gray-300 transition-colors duration-200">
                           {org.category?.category_name}
                         </span>
                       </div>
@@ -461,7 +421,7 @@ const Homepage = () => {
                   setSelectedCategory("");
                   filterOrgs("", "");
                 }}
-                className="mt-4 px-4 py-2 bg-maroon hover:bg-maroon/90 text-white rounded-lg transition-colors"
+                className="mt-4 px-4 py-2 bg-maroon hover:bg-maroon/90 text-white rounded-lg"
               >
                 Clear Filters
               </button>
@@ -471,12 +431,9 @@ const Homepage = () => {
         <ActionButton type="top" />
       </div>
 
-      {/* Footer */}
-      <footer className="bg-maroon dark:bg-maroon-900 text-white dark:text-gray-200 py-6">
-        <div className="max-w-6xl mx-auto px-4">
-          <p className="text-center">
-            &copy; {new Date().getFullYear()}. All rights reserved.
-          </p>
+      <footer className="bg-maroon dark:bg-maroon-900 text-white dark:text-gray-200 py-6 ">
+        <div className="max-w-6xl mx-auto px-4 text-center">
+          &copy; {new Date().getFullYear()}. All rights reserved.
         </div>
       </footer>
     </>
