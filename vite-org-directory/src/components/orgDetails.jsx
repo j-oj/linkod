@@ -130,7 +130,7 @@ const OrganizationDetails = ({
             </div>
             <button
               onClick={() => setDetailsModal(false)}
-              className="text-gray-400 hover:text-gray-300 hover:scale-120 p-2 -mt-2 -mr-2"
+              className="absolute top-4 right-4 z-10 text-gray-400 hover:text-gray-600 hover:scale-110 p-2 transition-all duration-200"
               aria-label="Close modal"
             >
               <FaTimes className="w-6 h-6" />
