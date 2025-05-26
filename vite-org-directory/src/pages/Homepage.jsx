@@ -365,7 +365,7 @@ const Homepage = () => {
                   <Link
                     key={org.id || org.org_id}
                     to={`/orgs/${org.slug}`}
-                    className={`org-card relative bg-white dark:bg-gray-800 shadow-sm hover:shadow-lg transition-all rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-700 transition-colors duration-400 group ${
+                    className={`org-card relative bg-white dark:bg-gray-800 shadow-sm hover:shadow-lg transition-all rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-700 transition-colors duration-4 00 group ${
                       isAdmin ? "ring-4 ring-yellow-400" : ""
                     }`}
                   >

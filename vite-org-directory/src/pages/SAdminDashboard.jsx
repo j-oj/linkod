@@ -827,11 +827,12 @@ export default function SAdminDashboard() {
               >
                 Cancel
               </button>
-
               <button
-                className="px-4 py-2 bg-maroon text-white rounded hover:bg-red-700"
+                className="px-4 py-2 bg-maroon text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isLoading}
                 onClick={async () => {
-                  if (!inviteEmail) {
+                  // Validation
+                  if (!inviteEmail.trim()) {
                     setAlert({
                       show: true,
                       message: "Please enter a valid email.",
@@ -849,6 +850,19 @@ export default function SAdminDashboard() {
                     return;
                   }
 
+                  // Basic email validation
+                  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                  if (!emailRegex.test(inviteEmail.trim())) {
+                    setAlert({
+                      show: true,
+                      message: "Please enter a valid email address.",
+                      type: "error",
+                    });
+                    return;
+                  }
+
+                  setIsLoading(true);
+
                   try {
                     // Get access token from Supabase
                     const {
@@ -856,14 +870,20 @@ export default function SAdminDashboard() {
                       error: sessionError,
                     } = await supabase.auth.getSession();
 
-                    if (sessionError || !session?.access_token) {
+                    if (sessionError) {
+                      throw new Error(`Session error: ${sessionError.message}`);
+                    }
+
+                    if (!session?.access_token) {
                       throw new Error(
-                        "Authentication token missing or invalid."
+                        "Authentication required. Please log in again."
                       );
                     }
 
                     const accessToken = session.access_token;
+                    const trimmedEmail = inviteEmail.trim().toLowerCase();
 
+                    // Call the invite admin edge function
                     const response = await fetch(
                       "https://ruigijbnxjgbndetnvhd.supabase.co/functions/v1/invite-admin",
                       {
@@ -872,67 +892,104 @@ export default function SAdminDashboard() {
                           "Content-Type": "application/json",
                           Authorization: `Bearer ${accessToken}`,
                         },
-                        body: JSON.stringify({ email: inviteEmail }),
+                        body: JSON.stringify({ email: trimmedEmail }),
                       }
                     );
 
                     const result = await response.json();
 
-                    if (response.ok) {
-                      // Wait for the user to be created in auth_user_view
-                      const { data: userData, error: userError } =
-                        await supabase
-                          .from("auth_user_view")
-                          .select("id")
-                          .eq("email", inviteEmail.trim().toLowerCase())
-                          .single();
-
-                      if (userError || !userData) {
-                        throw new Error(
-                          userError?.message || "Failed to retrieve user UID."
-                        );
-                      }
-
-                      // Insert the UID and role into the user_roles table
-                      const { error: roleInsertError } = await supabase
-                        .from("user_roles")
-                        .insert([
-                          {
-                            user_id: userData.id, // UID from auth_user_view
-                            role: selectedRole, // Selected role (admin or superadmin)
-                          },
-                        ]);
-
-                      if (roleInsertError) {
-                        throw new Error(
-                          roleInsertError.message || "Failed to assign role."
-                        );
-                      }
-
-                      setAlert({
-                        show: true,
-                        message: "Invite sent! Role is assigned successfuly.",
-                        type: "success",
-                      });
-
-                      setInviteModalOpen(false);
-                      setInviteEmail("");
-                    } else {
+                    if (!response.ok) {
                       throw new Error(
-                        result.message || "Failed to send invite."
+                        result.message ||
+                          `HTTP ${response.status}: Failed to send invite`
                       );
+                    }
+
+                    // Wait a moment for the user to be created in auth system
+                    await new Promise((resolve) => setTimeout(resolve, 2000));
+
+                    // Try to get the user from auth_user_view
+                    let userData;
+                    let retryCount = 0;
+                    const maxRetries = 5;
+
+                    while (retryCount < maxRetries) {
+                      const { data, error } = await supabase
+                        .from("auth_user_view")
+                        .select("id")
+                        .eq("email", trimmedEmail)
+                        .maybeSingle();
+
+                      if (data) {
+                        userData = data;
+                        break;
+                      }
+
+                      if (
+                        error &&
+                        !error.message.includes("No rows returned")
+                      ) {
+                        throw new Error(`Database error: ${error.message}`);
+                      }
+
+                      // Wait before retry
+                      await new Promise((resolve) => setTimeout(resolve, 1000));
+                      retryCount++;
+                    }
+
+                    if (!userData) {
+                      throw new Error(
+                        "User was invited but role assignment failed. Please try assigning the role manually."
+                      );
+                    }
+
+                    // Insert the role into user_roles table
+                    const { error: roleInsertError } = await supabase
+                      .from("user_roles")
+                      .insert([
+                        {
+                          user_id: userData.id,
+                          role: selectedRole.value, // Use .value since selectedRole is an object
+                        },
+                      ]);
+
+                    if (roleInsertError) {
+                      throw new Error(
+                        `Role assignment failed: ${roleInsertError.message}`
+                      );
+                    }
+
+                    // Success - show success alert
+                    setAlert({
+                      show: true,
+                      message: `Invite sent successfully! ${selectedRole.name} role has been assigned to ${trimmedEmail}.`,
+                      type: "success",
+                    });
+
+                    // Close modal and reset form
+                    setInviteModalOpen(false);
+                    setInviteEmail("");
+                    setSelectedRole("");
+
+                    // Refresh admin data if we're on the admins tab
+                    if (activeTab === "Admins") {
+                      await fetchData();
                     }
                   } catch (error) {
                     console.error("Invite error:", error);
+
+                    // Show error alert
                     setAlert({
                       show: true,
                       message: `Invite failed: ${error.message}`,
                       type: "error",
                     });
+                  } finally {
+                    setIsLoading(false);
                   }
                 }}
               >
-                Send Invite
+                {isLoading ? "Sending..." : "Send Invite"}
               </button>
             </div>
           </div>

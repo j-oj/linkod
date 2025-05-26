@@ -16,8 +16,8 @@ import {
 } from "react-icons/fa6";
 import DatePicker from "react-datepicker";
 import { format } from "date-fns";
-import Alert from "@/components/ui/Alert";
 import ConfirmAction from "@/components/ui/confirmAction";
+import Alert from "@/components/ui/Alert";
 
 const EditOrg = () => {
   const { slug } = useParams();
@@ -54,6 +54,7 @@ const EditOrg = () => {
     message: "",
     type: "error",
   });
+  const [skipNavigation, setSkipNavigation] = useState(false);
 
   // Auto-dismiss alert
   useEffect(() => {
@@ -336,11 +337,44 @@ const EditOrg = () => {
         throw new Error(insertError.message || "Failed to add admin.");
       }
 
-      showAlert("Admin added successfully!", "success");
+      // Insert or update the user role in user_roles table
+      const { error: roleError } = await supabase.from("user_roles").upsert(
+        [
+          {
+            user_id: admin_id,
+            role: "admin",
+          },
+        ],
+        {
+          onConflict: "user_id",
+        }
+      );
+
+      if (roleError) {
+        // If role insertion fails, we should rollback the admin insertion
+        await supabase
+          .from("admin")
+          .delete()
+          .eq("admin_id", admin_id)
+          .eq("org_id", org.org_id);
+
+        throw new Error(`Failed to assign admin role: ${roleError.message}`);
+      }
+
+      // Update local state instead of reloading the page
+      const newAdmin = {
+        admin_id,
+        admin_email: selectedUserEmail,
+        admin_name,
+        org_id: org.org_id,
+        admin_created_at,
+      };
+
+      // Update your admin state (adjust based on your state structure)
+      setCurrentAdmin(newAdmin); // or however you manage admin state
       setSelectedUserEmail(null);
-      setTimeout(() => {
-        window.location.reload();
-      }, 3000);
+
+      showAlert("Admin added successfully!", "success");
     } catch (error) {
       console.error("Error adding admin:", error);
       showAlert(`Error: ${error.message}`, "error");
@@ -432,6 +466,8 @@ const EditOrg = () => {
   };
 
   // Update the handleSubmit function to fix the file uploading issue
+  // Replace your existing handleSubmit function with this fixed version
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -544,7 +580,6 @@ const EditOrg = () => {
         })
         .eq("org_id", org.org_id);
 
-      // Add this right after the database update succeeds and before the tag processing:
       if (updateError) {
         console.error("Database update failed:", updateError);
         throw new Error(
@@ -562,109 +597,113 @@ const EditOrg = () => {
       const tagsToAdd = newTagNames.filter((tag) => !orgTags.includes(tag));
       const tagsToRemove = orgTags.filter((tag) => !newTagNames.includes(tag));
 
-      if (tagsToAdd.length > 0 || tagsToRemove.length > 0) {
-        if (tagsToRemove.length > 0) {
-          // Find tag IDs to remove
-          const { data: tagsToRemoveData, error: findRemoveError } =
-            await supabase
-              .from("tag")
-              .select("tag_id")
-              .in("tag_name", tagsToRemove);
-
-          if (findRemoveError) {
-            throw new Error(
-              `Error finding tags to remove: ${findRemoveError.message}`
-            );
-          }
-
-          const tagIdsToRemove = tagsToRemoveData.map((tag) => tag.tag_id);
-
-          if (tagIdsToRemove.length > 0) {
-            const { error: deleteTagsError } = await supabase
-              .from("org_tag")
-              .delete()
-              .eq("org_id", org.org_id)
-              .in("tag_id", tagIdsToRemove);
-
-            if (deleteTagsError) {
-              throw new Error(
-                `Error removing tags: ${deleteTagsError.message}`
-              );
-            }
-          }
-        }
-
-        if (tagsToAdd.length > 0) {
-          // Check which tags already exist
-          const { data: existingTags, error: fetchTagsError } = await supabase
+      // Process tag changes
+      if (tagsToRemove.length > 0) {
+        // Find tag IDs to remove
+        const { data: tagsToRemoveData, error: findRemoveError } =
+          await supabase
             .from("tag")
-            .select("tag_id, tag_name")
-            .in("tag_name", tagsToAdd);
+            .select("tag_id")
+            .in("tag_name", tagsToRemove);
 
-          if (fetchTagsError) {
+        if (findRemoveError) {
+          throw new Error(
+            `Error finding tags to remove: ${findRemoveError.message}`
+          );
+        }
+
+        const tagIdsToRemove = tagsToRemoveData.map((tag) => tag.tag_id);
+
+        if (tagIdsToRemove.length > 0) {
+          const { error: deleteTagsError } = await supabase
+            .from("org_tag")
+            .delete()
+            .eq("org_id", org.org_id)
+            .in("tag_id", tagIdsToRemove);
+
+          if (deleteTagsError) {
+            throw new Error(`Error removing tags: ${deleteTagsError.message}`);
+          }
+        }
+      }
+
+      if (tagsToAdd.length > 0) {
+        // Check which tags already exist
+        const { data: existingTags, error: fetchTagsError } = await supabase
+          .from("tag")
+          .select("tag_id, tag_name")
+          .in("tag_name", tagsToAdd);
+
+        if (fetchTagsError) {
+          throw new Error(
+            `Error fetching existing tags: ${fetchTagsError.message}`
+          );
+        }
+
+        // Find which tags need to be created
+        const existingTagNames = existingTags.map((tag) =>
+          tag.tag_name.toLowerCase()
+        );
+        const tagsToCreate = tagsToAdd.filter(
+          (tag) => !existingTagNames.includes(tag)
+        );
+
+        // Create new tags if needed
+        let newlyCreatedTags = [];
+        if (tagsToCreate.length > 0) {
+          const { data: insertedTags, error: insertTagsError } = await supabase
+            .from("tag")
+            .upsert(
+              tagsToCreate.map((tagName) => ({ tag_name: tagName })),
+              { onConflict: "tag_name" }
+            )
+            .select();
+
+          if (insertTagsError) {
             throw new Error(
-              `Error fetching existing tags: ${fetchTagsError.message}`
+              `Error creating new tags: ${insertTagsError.message}`
             );
           }
 
-          // Find which tags need to be created
-          const existingTagNames = existingTags.map((tag) =>
-            tag.tag_name.toLowerCase()
-          );
-          const tagsToCreate = tagsToAdd.filter(
-            (tag) => !existingTagNames.includes(tag)
-          );
-
-          // Create new tags if needed
-          let newlyCreatedTags = [];
-          if (tagsToCreate.length > 0) {
-            const { data: insertedTags, error: insertTagsError } =
-              await supabase
-                .from("tag")
-                .upsert(
-                  tagsToCreate.map((tagName) => ({ tag_name: tagName })),
-                  { onConflict: "tag_name" }
-                )
-                .select();
-
-            if (insertTagsError) {
-              throw new Error(
-                `Error creating new tags: ${insertTagsError.message}`
-              );
-            }
-
-            newlyCreatedTags = insertedTags || [];
-          }
-
-          // Combine existing and newly created tags that need to be linked
-          const allTagsToLink = [...existingTags, ...newlyCreatedTags];
-
-          // Create links between org and tags
-          const orgTagLinks = allTagsToLink.map((tag) => ({
-            org_id: org.org_id,
-            tag_id: tag.tag_id,
-          }));
-
-          if (orgTagLinks.length > 0) {
-            const { error: linkTagsError } = await supabase
-              .from("org_tag")
-              .upsert(orgTagLinks, { onConflict: "org_id,tag_id" });
-
-            if (linkTagsError) {
-              throw new Error(
-                `Error linking tags to organization: ${linkTagsError.message}`
-              );
-            }
-          }
+          newlyCreatedTags = insertedTags || [];
         }
 
-        // Update local state to reflect new tags
-        setOrgTags(newTagNames);
-        showAlert("Organization updated successfully!", "success");
+        // Combine existing and newly created tags that need to be linked
+        const allTagsToLink = [...existingTags, ...newlyCreatedTags];
 
+        // Create links between org and tags
+        const orgTagLinks = allTagsToLink.map((tag) => ({
+          org_id: org.org_id,
+          tag_id: tag.tag_id,
+        }));
+
+        if (orgTagLinks.length > 0) {
+          const { error: linkTagsError } = await supabase
+            .from("org_tag")
+            .upsert(orgTagLinks, { onConflict: "org_id,tag_id" });
+
+          if (linkTagsError) {
+            throw new Error(
+              `Error linking tags to organization: ${linkTagsError.message}`
+            );
+          }
+        }
+      }
+
+      // Update local state to reflect new tags
+      setOrgTags(newTagNames);
+
+      // Show success message
+      showAlert("Organization updated successfully!", "success");
+
+      // FIXED: Only navigate if skipNavigation is false
+      if (!skipNavigation) {
         setTimeout(() => {
           navigate(`/orgs/${slug}`);
         }, 2000);
+      } else {
+        // Reset the flag after a successful update
+        setSkipNavigation(false);
       }
     } catch (err) {
       console.error("Error during update:", err);
@@ -714,7 +753,7 @@ const EditOrg = () => {
           </div>
 
           <form
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
 
               // Track form validity
@@ -784,7 +823,12 @@ const EditOrg = () => {
 
               // Only submit if all validations pass
               if (isValid) {
-                handleSubmit(e);
+                try {
+                  await handleSubmit(e);
+                } catch (err) {
+                  console.error("Form submit error:", err);
+                  showAlert(`Error: ${err.message}`, "error");
+                }
               }
             }}
             className="p-4 sm:p-6 md:p-8"
@@ -1330,30 +1374,81 @@ const EditOrg = () => {
             <ConfirmAction
               isOpen={removeConfirmOpen}
               onClose={() => setRemoveConfirmOpen(false)}
+              // Replace the existing onConfirm function in the ConfirmAction component
               onConfirm={async () => {
                 try {
-                  const { error } = await supabase
+                  // First, get the admin details before deleting
+                  const { data: adminToRemove, error: fetchError } =
+                    await supabase
+                      .from("admin")
+                      .select("admin_id")
+                      .eq("org_id", org.org_id)
+                      .single();
+
+                  if (fetchError) {
+                    throw new Error(
+                      `Failed to fetch admin details: ${fetchError.message}`
+                    );
+                  }
+
+                  if (!adminToRemove) {
+                    throw new Error("Admin not found");
+                  }
+
+                  // Delete from admin table
+                  const { error: deleteAdminError } = await supabase
                     .from("admin")
                     .delete()
                     .eq("org_id", org.org_id);
 
-                  if (error) throw new Error(error.message);
+                  if (deleteAdminError) {
+                    throw new Error(
+                      `Failed to remove admin: ${deleteAdminError.message}`
+                    );
+                  }
 
-                  setAlert({
-                    show: true,
-                    message: "Admin removed successfully!",
-                    type: "success",
-                  });
+                  // Remove the admin role from user_roles table
+                  const { error: deleteRoleError } = await supabase
+                    .from("user_roles")
+                    .delete()
+                    .eq("user_id", adminToRemove.admin_id)
+                    .eq("role", "admin");
+
+                  if (deleteRoleError) {
+                    // Log the error but don't fail the entire operation
+                    // since the admin has already been removed from the admin table
+                    console.warn(
+                      "Failed to remove admin role from user_roles:",
+                      deleteRoleError.message
+                    );
+
+                    // Optionally, you could show a warning to the user
+                    setAlert({
+                      show: true,
+                      message:
+                        "Admin removed, but there was an issue updating user roles. Please contact support if this persists.",
+                      type: "warning",
+                    });
+                  } else {
+                    setAlert({
+                      show: true,
+                      message: "Admin removed successfully!",
+                      type: "success",
+                    });
+                  }
+
                   setCurrentAdmin(null);
                 } catch (err) {
                   console.error("Error removing admin:", err);
                   setAlert({
                     show: true,
-                    message: "Failed to remove admin. Please try again.",
+                    message: `Failed to remove admin: ${err.message}`,
                     type: "error",
                   });
                 } finally {
                   setRemoveConfirmOpen(false);
+                  // Reset flag after a short delay
+                  setTimeout(() => setSkipNavigation(false), 100);
                 }
               }}
               title="Remove Admin"
